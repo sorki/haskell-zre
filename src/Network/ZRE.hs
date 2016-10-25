@@ -44,8 +44,6 @@ import GHC.Conc
 mCastPort = 5670
 mCastIP = "225.25.25.25"
 
---zmqPort = 1337
-
 -- send beacon every 1 second
 zreBeaconMs = 1000000
 
@@ -67,6 +65,7 @@ newPeer s endpoint uuid groups name t = do
   st <- readTVar s
   peerQ <- newTBQueue 10
   writeTBQueue peerQ $ Hello (zreEndpoint st) (zreGroups st) (zreGroupSeq st) (zreName st) (zreHeaders st)
+  writeTBQueue peerQ $ Whisper ["ohai!"]
 
   let np = Peer endpoint uuid 0 groups 0 name Nothing Nothing peerQ t
 
@@ -82,9 +81,7 @@ newPeerFromHello (Hello endpoint groups groupSeq name headers) t uuid s =
 
 pinger q = forever $ do
   atomically $ writeTBQueue q $ Ping
-  --liftIO $ threadDelay 1000
-  --liftIO $ threadDelay 1000000
-
+  liftIO $ threadDelay 1000000
 
 makePeer s uuid newPeerFn = do
   t <- getCurrentTime
@@ -109,6 +106,20 @@ updatePeer s uuid fn = do
     Nothing -> return ()
     (Just peer) -> modifyTVar s $ \x -> x { zrePeers = M.updateWithKey (wrapfn fn) uuid (zrePeers x) }
   where wrapfn fn k x = Just $ fn x
+
+msgPeer peer msg = writeTBQueue (peerQueue peer) msg
+
+msgPeerUUID s uuid msg = do
+  st <- readTVar s
+  case M.lookup uuid $ zrePeers st of
+    Nothing -> return ()
+    (Just peer) -> do
+      msgPeer peer msg
+      return ()
+
+msgAll s msg = do
+  st <- readTVar s
+  mapM_ (flip msgPeer msg) (zrePeers st)
 
 
 -- FIXME: try binding to it up to n times
@@ -138,6 +149,7 @@ exitFail msg = do
   B.putStrLn msg
   exitFailure
 
+bshow :: (Show a) => a -> B.ByteString
 bshow = B.pack . show
 
 getDefRoute = do
@@ -196,28 +208,28 @@ inbox inboxQ s = forever $ do
 
   let uuid = fromJust msgFrom
 
-  st <- atomically $ readTVar s
-  case M.lookup uuid $ zrePeers st of
-    Just _ -> return ()
-    Nothing -> do
-      -- if the peer is not known but a message is HELLO we create a new
-      -- peer, for other messages we don't know the endpoint to connect to
-      --liftIO $ B.putStrLn $ B.concat ["Message from unknown peer ", B.pack $ show uuid]
-
-      case msgCmd of
-        h@(Hello endpoint groups groupSeq name headers) -> do
-          liftIO $ B.putStrLn $ B.concat ["From hello"]
-          peer <- makePeer s uuid $ newPeerFromHello h
-          -- if this peer was already registered (e.g. from beacon) update appropriate fields
-          atomically $ updatePeer s uuid $
-            \x -> x {
-                peerGroups = groups
-              , peerGroupSeq = groupSeq
-              , peerName = name
-              }
-          return ()
-
-  --print msg
+  case msgCmd of
+    (Whisper content) -> B.putStrLn $ B.intercalate " " ["whisper", B.concat content]
+    (Shout group content) -> B.putStrLn $ B.intercalate " " ["shout", B.concat content]
+    (Join group groupSeq) -> B.putStrLn $ B.intercalate " " ["join", group, bshow groupSeq]
+    (Leave group groupSeq) -> B.putStrLn $ B.intercalate " " ["leave", group, bshow groupSeq]
+    Ping -> atomically $ msgPeerUUID s uuid PingOk
+    PingOk -> return ()
+    -- if the peer is not known but a message is HELLO we create a new
+    -- peer, for other messages we don't know the endpoint to connect to
+    --liftIO $ B.putStrLn $ B.concat ["Message from unknown peer ", B.pack $ show uuid]
+    h@(Hello endpoint groups groupSeq name headers) -> do
+      liftIO $ B.putStrLn $ B.concat ["From hello"]
+      peer <- makePeer s uuid $ newPeerFromHello h
+      -- if this peer was already registered (e.g. from beacon) update appropriate fields
+      atomically $ updatePeer s uuid $
+        \x -> x {
+            peerGroups = groups
+          , peerGroupSeq = groupSeq
+          , peerName = name
+          }
+      atomically $ msgAll s $ Shout "" ["suckers!"]
+      return ()
 
 dealer endpoint ourUUID peerQ = ZMQ.runZMQ $ do
   d <- ZMQ.socket ZMQ.Dealer
@@ -228,16 +240,9 @@ dealer endpoint ourUUID peerQ = ZMQ.runZMQ $ do
   ZMQ.setIdentity (ZMQ.restrict $ uuidByteString ourUUID) d
   ZMQ.connect d $ B.unpack $ pEndpoint endpoint
   loop d 0
- -- forever $ do
- --    let msg = ZREMsg ourUUID 0 $ Whisper ["ohai"]
- --    ZMQ.sendMulti d $ (NE.fromList $ encodeZRE $ msg :: NE.NonEmpty B.ByteString)
- --    liftIO $ threadDelay 1000000
   where loop d x = do
            cmd <- liftIO $ atomically $ readTBQueue peerQ
-           -- ourUUID is redundant here, switch to maybe
-           --let msg = ZREMsg ourUUID x $ Whisper ["ohai"]
            ZMQ.sendMulti d $ (NE.fromList $ encodeZRE $ newZRE x cmd :: NE.NonEmpty B.ByteString)
-           --liftIO $ threadDelay 1000000
            loop d (x+1)
 
 router inboxQ port = ZMQ.runZMQ $ do
@@ -263,9 +268,6 @@ peerPool q s = forever $ do
             Nothing -> do
               B.putStrLn $ B.concat ["New peer from beacon ", B.pack $ show uuid, " (", addr, ":", B.pack $ show port , ")"]
               void $ makePeer s uuid $ newPeerFromBeacon addr port
-              --deal <- atomically $ newPeerFromBeacon s addr port uuid
-              --a <- async deal
-              --atomically $ updatePeer s uuid $ \k x -> Just $ x { peerAsync = (Just a) }
               return ()
 
 
@@ -273,7 +275,6 @@ beaconRecv q = do
     sock <- multicastReceiver mCastIP 5670
     forever $ do
         (msg, addr) <- recvFrom sock 22
-        -- print (msg, addr)
         case parseBeacon msg of
           (Left err, remainder) -> print err
           (Right (lead, ver, uuid, port), _) -> do

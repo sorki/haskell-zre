@@ -25,7 +25,6 @@ zreSig = 0xAAA1 :: Word16
 
 type Seq = Int
 type GroupSeq = Int
---type Endpoint = B.ByteString
 type Group = B.ByteString
 type Groups = [Group]
 type Name = B.ByteString
@@ -144,7 +143,6 @@ encodeCmd (Leave group statusSeq) = do
   putByteStringLen group
   putInt8 $ fromIntegral statusSeq
 encodeCmd _ = return ()
---encodeCmd (Whisper content) = return ()
 
 parseString = do
   len <- getInt8
