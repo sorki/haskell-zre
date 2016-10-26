@@ -15,7 +15,13 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Network.ZRE, Data.ZRE, System.ZMQ4.Endpoint
+  exposed-modules:       Network.ZRE
+                       , Network.ZRE.Peer
+                       , Network.ZRE.Utils
+                       , Network.ZRE.Types
+                       , Network.ZRE.ZMQ
+                       , Data.ZRE
+                       , System.ZMQ4.Endpoint
   build-depends:       base >= 4.7 && < 5
                      , async
                      , attoparsec
@@ -30,7 +36,7 @@ library
                      , process
                      , random
                      , stm
-                     , streaming-commons
+--                     , streaming-commons
                      , time
                      , uuid
                      , zeromq4-haskell

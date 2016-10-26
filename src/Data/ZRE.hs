@@ -17,6 +17,9 @@ import Data.Binary.Put
 import qualified Data.Map as M
 import Data.Maybe
 import Data.UUID
+import Data.Time.Clock
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import System.ZMQ4.Endpoint
 
@@ -26,7 +29,7 @@ zreSig = 0xAAA1 :: Word16
 type Seq = Int
 type GroupSeq = Int
 type Group = B.ByteString
-type Groups = [Group]
+type Groups = Set Group
 type Name = B.ByteString
 type Headers = M.Map B.ByteString B.ByteString
 type Content = [B.ByteString]
@@ -35,6 +38,7 @@ type Content = [B.ByteString]
 data ZREMsg = ZREMsg {
     msgFrom :: Maybe UUID
   , msgSeq :: Seq
+  , msgTime :: Maybe UTCTime
   , msgCmd :: ZRECmd
   } deriving (Show, Eq, Ord)
 
@@ -118,7 +122,7 @@ getContent (Whisper c) = c
 getContent (Shout _ c) = c
 getContent _ = []
 
-newZRE seqNum cmd = ZREMsg Nothing seqNum cmd
+newZRE seqNum cmd = ZREMsg Nothing seqNum Nothing cmd
 
 encodeZRE ZREMsg{..} = msg:(getContent msgCmd)
   where
@@ -171,7 +175,7 @@ parseMap = do
 
 parseHello = Hello
   <$> parseEndpoint'
-  <*> parseStrings
+  <*> fmap Set.fromList parseStrings
   <*> getInt8
   <*> parseString
   <*> parseMap
@@ -208,7 +212,7 @@ parseCmd from frames = do
               0xd7 -> pure PingOk
               _    -> fail "Unknown command"
 
-            return $ ZREMsg (Just uuid) seq cmd
+            return $ ZREMsg (Just uuid) seq Nothing cmd
 
 parseZRE (from:msg:rest) = parseZre from msg rest
 parseZRE _ = (Left "empty message", "")
