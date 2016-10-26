@@ -105,6 +105,7 @@ inbox inboxQ s = forever $ do
       atomically $ updateLastHeard peer $ fromJust msgTime
 
       -- FIXME: acually check sequence numbers
+      -- FIXME: check if the received message is hello
       atomically $ updatePeer peer $ \x -> x { peerSeq = msgSeq }
 
       case msgCmd of
@@ -124,12 +125,11 @@ inbox inboxQ s = forever $ do
         PingOk -> return ()
         h@(Hello endpoint groups groupSeq name headers) -> do
           -- if this peer was already registered (e.g. from beacon) update appropriate data
-          atomically $ joinGroups s peer groups groupSeq
-          atomically $ updatePeer peer $
-            \x -> x {
-              peerName = name
-              }
-          atomically $ msgAll s $ Shout "chat" ["suckers!"]
+          atomically $ do
+            joinGroups s peer groups groupSeq
+            updatePeer peer $ \x -> x { peerName = name }
+            msgAll s $ Shout "chat" ["suckers!"]
+            -- emit via writer?
           return ()
 
 -- FIXME: this queue is obsolete as well

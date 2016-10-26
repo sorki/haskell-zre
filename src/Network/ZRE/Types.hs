@@ -19,13 +19,16 @@ mCastIP = "225.25.25.25"
 --zreBeaconMs = 1000000
 
 -- send beacon every 100 mseconds
-zreBeaconMs = 1000 :: Int
+zreBeaconMs = 100000 :: Int
 
 -- send hugz after x mseconds
---quietPeriod = 20000 / 100000.0 :: NominalDiffTime
---deadPeriod = 60000  / 100000.0 :: NominalDiffTime
-quietPeriod = 2000 / 100000.0 :: NominalDiffTime
-deadPeriod = 6000  / 100000.0 :: NominalDiffTime
+quietPeriod = 200000 / 1000000.0 :: NominalDiffTime
+deadPeriod = 600000  / 1000000.0 :: NominalDiffTime
+
+-- send beacon every 1 ms (much aggressive, will kill networkz)
+--zreBeaconMs = 1000 :: Int
+--quietPeriod = 2000 / 100000.0 :: NominalDiffTime
+--deadPeriod = 6000  / 100000.0 :: NominalDiffTime
 
 data Event =
   NewPeer B.ByteString UUID Port
