@@ -1,14 +1,22 @@
+zre
+===
+
 ZRE protocol implementation https://rfc.zeromq.org/spec:36/ZRE/
 
 Work in progress, most protocol / networking stuff is working,
 interface needs some work.
 
-Usage:
+Usage
+-----
 
-stack build
-stack exec zre
-# in another terminal
-stack exec zre
+Clone and test::
+
+        git clone https://git.48.io/zre/
+        cd zre
+        stack build
+        stack exec zre
+        # in another terminal
+        stack exec zre
 
 
 Two zre peers should find each other and be able to send message between each other.
