@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Network.ZRE.Types where
 
+import Control.Monad.RWS hiding (state)
+import Control.Monad.Identity
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.Concurrent.STM.TBQueue
@@ -31,13 +34,25 @@ deadPeriod = 600000  / 1000000.0 :: NominalDiffTime
 --deadPeriod = 6000  / 100000.0 :: NominalDiffTime
 
 data Event =
-  NewPeer B.ByteString UUID Port
-  deriving (Show)
+    New Peer
+  | Update Peer
+  | GroupJoin Peer Group
+  | GroupLeave Peer Group
+  | Quit Peer
+  | Message ZREMsg
+--  deriving (Show)
+
+data API =
+    DoJoin Group
+  | DoLeave Group
+  | DoShout Group B.ByteString
+  | DoWhisper Peer B.ByteString
 
 type Peers = M.Map UUID (TVar Peer)
 type PeerGroups = M.Map Group Peers
 
-data ZRE = ZRE {
+-- zreUS :: Peer ???
+data ZREState = ZREState {
     zreUUID       :: UUID
   , zrePeers      :: Peers
   , zrePeerGroups :: PeerGroups
@@ -46,6 +61,8 @@ data ZRE = ZRE {
   , zreGroupSeq   :: GroupSeq
   , zreName       :: Name
   , zreHeaders    :: Headers
+  , zreIn         :: TBQueue Event
+  , zreOut        :: TBQueue API
   }
 
 data Peer = Peer {
@@ -60,3 +77,20 @@ data Peer = Peer {
   , peerQueue     :: TBQueue ZRECmd
   , peerLastHeard :: UTCTime
   }
+
+newtype ZRET m a = ZRE { runZRE :: RWST ZREReader [ZREWriter] ZREState m a }
+  deriving (Monad,
+            Functor,
+            Applicative,
+            MonadReader ZREReader,
+            MonadWriter [ZREWriter],
+            MonadState ZREState)
+
+type ZRE = ZRET Identity
+
+data ZREReader = ZREReader {
+  readName :: B.ByteString
+  }
+
+data ZREWriter =
+  Event ZREMsg

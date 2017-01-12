@@ -6,6 +6,9 @@ import System.Process
 import System.Random
 import System.ZMQ4.Endpoint
 import Network.Info
+import Network.ZRE.Types
+import Control.Concurrent.STM
+import Control.Concurrent.STM.TBQueue
 
 import Data.UUID (toByteString)
 import Data.Maybe
@@ -37,3 +40,6 @@ getIface iname = do
 randPort :: IO Port
 randPort = randomRIO (41000, 65536)
 
+emit s x = do
+  st <- readTVar s
+  writeTBQueue (zreIn st) x

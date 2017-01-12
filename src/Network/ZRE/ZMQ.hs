@@ -31,7 +31,7 @@ dealer endpoint ourUUID peerQ = ZMQ.runZMQ $ do
            ZMQ.sendMulti d $ (NE.fromList $ encodeZRE $ newZRE x cmd :: NE.NonEmpty B.ByteString)
            loop d (x+1)
 
-router inboxQ port = ZMQ.runZMQ $ do
+router port handler = ZMQ.runZMQ $ do
   r <- ZMQ.socket ZMQ.Router
   ZMQ.bind r $ concat ["tcp://", "*:", show port]
   forever $ do
@@ -41,4 +41,6 @@ router inboxQ port = ZMQ.runZMQ $ do
         (Left err, _) -> liftIO $ print $ "Malformed message received: " ++ err
         (Right msg, _) -> do
           let updateTime = \x -> x { msgTime = Just now }
-          liftIO $ atomically $ writeTBQueue inboxQ (updateTime msg)
+          --liftIO $ atomically $ writeTBQueue inboxQ (updateTime msg)
+          liftIO $ handler (updateTime msg)
+          return ()

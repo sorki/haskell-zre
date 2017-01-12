@@ -31,18 +31,19 @@ newPeer s endpoint uuid groups name t = do
   st <- readTVar s
   peerQ <- newTBQueue 10
   writeTBQueue peerQ $ Hello (zreEndpoint st) (zreGroups st) (zreGroupSeq st) (zreName st) (zreHeaders st)
-  writeTBQueue peerQ $ Whisper ["ohai!"]
-  writeTBQueue peerQ $ Join "lala" 0
 
-  np <- newTVar $ Peer endpoint uuid 0 groups 0 name Nothing Nothing peerQ t
+  let p = Peer endpoint uuid 0 groups 0 name Nothing Nothing peerQ t
+  np <- newTVar $ p
 
   modifyTVar s $ \x -> x { zrePeers = M.insert uuid np (zrePeers x) }
+
+  emit s $ New p
 
   return $ (np, Just $ dealer endpoint (zreUUID st) peerQ, Just $ pinger s np)
 
 newPeerFromBeacon addr port t uuid s = do
   let endpoint = newTCPEndpoint addr port
-  newPeer s endpoint uuid (Set.empty :: Groups) "" t
+  newPeer s endpoint uuid (Set.empty :: Groups) "<unknown>" t
 newPeerFromHello (Hello endpoint groups groupSeq name headers) t uuid s =
   newPeer s endpoint uuid groups name t
 
@@ -55,25 +56,25 @@ makePeer s uuid newPeerFn = do
       Nothing -> newPeerFn t uuid s
 
   case res of
+    -- fixme: clumsy
     (peer, Nothing, Nothing) -> return peer
     (peer, Just deal, Just ping) -> do
       a <- async deal
       b <- async ping
       atomically $ do
-        p <- readTVar peer
         updatePeer peer $ \x -> x { peerAsync = (Just a) }
         updatePeer peer $ \x -> x { peerAsyncPing = (Just b) }
 
       return peer
 
 destroyPeer s uuid = do
-  B.putStrLn "Destroy peer"
   asyncs <- atomically $ do
     mpt <- lookupPeer s uuid
     case mpt of
       Nothing -> return []
       (Just peer) -> do
-        Peer{..} <- readTVar peer
+        p@Peer{..} <- readTVar peer
+        emit s $ Quit p
         modifyTVar s $ \x -> x { zrePeers = M.delete uuid (zrePeers x) } 
         leaveGroups s peer peerGroups peerGroupSeq
 
@@ -96,13 +97,13 @@ pinger s pt = forever $ do
         else return ()
 
   -- FIXME: less retarded scheduling
-  liftIO $ threadDelay 10000
+  threadDelay 10000
 
 lookupPeer s uuid = do
   st <- readTVar s
   return $ M.lookup uuid $ zrePeers st
 
-updatePeer peer fn = modifyTVar peer fn
+updatePeer peer fn = do modifyTVar peer fn
 
 updatePeerUUID s uuid fn = do
   st <- readTVar s
@@ -116,6 +117,7 @@ joinGroup s peer group groupSeq = do
   updatePeer peer $ \x -> x { peerGroups = Set.insert group (peerGroups x) }
   updatePeer peer $ \x -> x { peerGroupSeq = groupSeq }
   p <- readTVar peer
+  emit s $ GroupJoin p group
   modifyTVar s $ \x -> x { zrePeerGroups = M.alter (f p peer) group $ zrePeerGroups x }
   where
     f p peer Nothing = Just $ M.fromList [(peerUUID p, peer)]
@@ -128,6 +130,7 @@ leaveGroup s peer group groupSeq = do
   updatePeer peer $ \x -> x { peerGroups = Set.delete group (peerGroups x) }
   updatePeer peer $ \x -> x { peerGroupSeq = groupSeq }
   p <- readTVar peer
+  emit s $ GroupLeave p group
   modifyTVar s $ \x -> x { zrePeerGroups = M.alter (f p peer) group $ zrePeerGroups x }
   where
     f p peer Nothing = Nothing
