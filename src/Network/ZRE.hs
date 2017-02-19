@@ -49,7 +49,7 @@ msec n = n * 1000
 
 main = do
   --a <- async $ runZre app
-  runZre app
+  runZre appW
 
   where
     appF inQ outQ = forever $ do
@@ -96,6 +96,39 @@ main = do
           return ()
 
         call x = atomically $ writeTBQueue outQ x
+
+    appW inQ outQ = do
+      call $ join "pool"
+      runConcurrently $ Concurrently (recv) *> Concurrently (broadcast)
+       where
+        recv = forever $ do
+          evt <- atomically $ readTBQueue inQ
+          case evt of
+            New peer -> do
+              call $ whisper peer "ohai"
+              B.putStrLn $ B.intercalate " " ["New peer", printPeer peer]
+            Update peer -> B.putStrLn $ B.intercalate " " ["Update peer", printPeer peer]
+            Quit peer -> B.putStrLn $ B.intercalate " " ["Peer quit", printPeer peer]
+            GroupJoin peer group -> B.putStrLn $ B.intercalate " " ["Join group", group, printPeer peer]
+            GroupLeave peer group -> B.putStrLn $ B.intercalate " " ["Leave group", group, printPeer peer]
+            Message m@ZREMsg{..} -> do
+              B.putStrLn $ bshow m
+              case msgCmd of
+                (Shout group content) -> B.putStrLn $ B.intercalate " " ["shout for group", group, ">", B.concat content]
+                (Whisper content) -> do
+                  B.putStrLn $ B.intercalate " " ["whisper", B.concat content]
+                  call $ shout "pool" (B.intercalate " " ["taking job", B.concat content])
+                  call $ join $ B.concat content
+                  mapM_ (\x -> (call $ shout (B.concat content) x) >> threadDelay 100000) (replicate 100 "lala")
+
+        broadcast = forever $ do
+          B.putStr " >"
+          msg <- fmap B.pack getLine
+          call $ shout "CHAT" msg
+          return ()
+
+        call x = atomically $ writeTBQueue outQ x
+
 
 join = DoJoin
 leave = DoLeave
