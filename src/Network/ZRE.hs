@@ -203,7 +203,8 @@ inbox s inQ msg@ZREMsg{..} = do
         -- peer, for other messages we don't know the endpoint to connect to
         h@(Hello endpoint groups groupSeq name headers) -> do
           liftIO $ dbg $ B.putStrLn $ B.concat ["From hello"]
-          void $ makePeer s uuid $ newPeerFromHello h
+          peer <- makePeer s uuid $ newPeerFromHello h
+          void $ atomically $ joinGroups s peer groups groupSeq
         -- silently drop any other messages
         _ -> return ()
 
