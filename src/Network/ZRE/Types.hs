@@ -46,7 +46,8 @@ data API =
     DoJoin Group
   | DoLeave Group
   | DoShout Group B.ByteString
-  | DoWhisper Peer B.ByteString
+  | DoShoutMulti Group [B.ByteString]
+  | DoWhisper UUID B.ByteString
 
 type Peers = M.Map UUID (TVar Peer)
 type PeerGroups = M.Map Group Peers

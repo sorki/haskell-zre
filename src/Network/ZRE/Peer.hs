@@ -113,6 +113,7 @@ updatePeerUUID s uuid fn = do
 
 updateLastHeard peer val = updatePeer peer $ \x -> x { peerLastHeard = val }
 
+-- join `peer` to `group`, update group sequence nuber to `groupSeq`
 joinGroup s peer group groupSeq = do
   updatePeer peer $ \x -> x { peerGroups = Set.insert group (peerGroups x) }
   updatePeer peer $ \x -> x { peerGroupSeq = groupSeq }
@@ -156,6 +157,13 @@ msgPeerUUID s uuid msg = do
 msgAll s msg = do
   st <- readTVar s
   mapM_ (flip msgPeer msg) (zrePeers st)
+
+msgGroup s groupname msg = do
+  st <- readTVar s
+  case M.lookup groupname $ zrePeerGroups st of
+    Nothing -> return () -- XXX: should report no such group error?
+    (Just group) -> do
+      mapM_ (flip msgPeer msg) group
 
 printPeers x = do
   mapM_ ePrint $ M.elems x

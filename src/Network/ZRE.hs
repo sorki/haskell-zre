@@ -47,7 +47,7 @@ dbg x = return ()
 sec n = n * 1000000
 msec n = n * 1000
 
-main = do
+oldmain = do
   --a <- async $ runZre app
   runZre appW
 
@@ -77,7 +77,7 @@ main = do
           evt <- atomically $ readTBQueue inQ
           case evt of
             New peer -> do
-              call $ whisper peer "ohai"
+              --call $ whisper peer "ohai"
               B.putStrLn $ B.intercalate " " ["New peer", printPeer peer]
             Update peer -> B.putStrLn $ B.intercalate " " ["Update peer", printPeer peer]
             Quit peer -> B.putStrLn $ B.intercalate " " ["Peer quit", printPeer peer]
@@ -105,7 +105,7 @@ main = do
           evt <- atomically $ readTBQueue inQ
           case evt of
             New peer -> do
-              call $ whisper peer "ohai"
+              --call $ whisper peer "ohai"
               B.putStrLn $ B.intercalate " " ["New peer", printPeer peer]
             Update peer -> B.putStrLn $ B.intercalate " " ["Update peer", printPeer peer]
             Quit peer -> B.putStrLn $ B.intercalate " " ["Peer quit", printPeer peer]
@@ -174,25 +174,35 @@ api s = forever $ do
     st <- readTVar s
     readTBQueue (zreOut st)
 
+  handleApi s action
+  --printAll s
+
+handleApi s action = atomically $ do
   case action of
-    DoJoin group -> atomically $ do
-      -- also modify US
+    DoJoin group -> do
       st <- readTVar s
       modifyTVar s $ \x -> x { zreGroups = Set.insert group (zreGroups x) }
       msgAll s $ Join group (zreGroupSeq st)
 
-    -- DoShoutMulti needed
-    DoShout group msg -> atomically $ do
-      msgAll s $ Shout group [msg]
-    DoWhisper peer msg -> atomically $ do
-      msgPeerUUID s (peerUUID peer) $ Whisper [msg]
---    DoLeave group -> 
---    ("shout", msg) -> 
+    DoLeave group -> do
+      st <- readTVar s
+      modifyTVar s $ \x -> x { zreGroups = Set.delete group (zreGroups x) }
+      msgAll s $ Leave group (zreGroupSeq st)
+
+    DoShoutMulti group mmsg -> msgGroup s group $ Shout group mmsg
+    DoShout group msg -> msgGroup s group $ Shout group [msg]
+    DoWhisper uuid msg -> do
+      mpt <- lookupPeer s uuid
+      case mpt of
+        Nothing -> return ()
+        Just peer -> do
+          p <- readTVar peer
+          msgPeerUUID s (peerUUID p) $ Whisper [msg]
 
 inbox s inQ msg@ZREMsg{..} = do
   let uuid = fromJust msgFrom
 
-  -- print complete state
+  dbg $ B.putStrLn "state pre-msg"
   dbg $ printAll s
 
   mpt <- atomically $ lookupPeer s uuid
@@ -245,6 +255,9 @@ inbox s inQ msg@ZREMsg{..} = do
             emit s $ Update p
           return ()
 
+  dbg $ B.putStrLn "state post-msg"
+  dbg $ printAll s
+
 beaconRecv s = do
     sock <- multicastReceiver mCastIP 5670
     forever $ do
@@ -296,3 +309,8 @@ beacon addr uuid port = do
       --putStrLn "send"
       sendTo s (zreBeacon uuid port) addr
       threadDelay zreBeaconMs
+
+
+readZreQueue inQ = atomically $ readTBQueue inQ
+writeZreQueue outQ x = atomically $ writeTBQueue outQ x
+concurrentZre recv act = runConcurrently $ Concurrently (recv) *> Concurrently (act)
