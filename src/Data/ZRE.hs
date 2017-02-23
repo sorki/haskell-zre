@@ -60,6 +60,10 @@ getInt32 = fromIntegral <$> getWord32be
 
 zreBeacon uuid port = BL.toStrict $ runPut $ do
   putByteString "ZRE"
+  -- XXX: for compatibility with zyre implementation
+  -- this should use 0x01 instead, but why when
+  -- we can stick zre version there and use it for filtering?
+  -- putInt8 $ fromIntegral 0x01
   putInt8 $ fromIntegral zreVer
   putByteString uuid
   putInt16be $ fromIntegral port
@@ -99,24 +103,14 @@ putMap map = do
   mapM_ putKV ml
   where ml = M.toList map
 
-genZre = BL.toStrict $ runPut $ do
-  putWord16be zreSig
-  putWord8 0xd1 -- cmd
-  putInt8 $ fromIntegral zreVer
-  putWord16be 1337
-  putByteStringLen "endpoint:1337"
-  putByteStrings ["group1", "group2"]
-  putInt8 7
-  putByteStringLen "name"
-  putMap (M.fromList [("abc", "val1"), ("qqq", "val2")])
 
-cmdCode (Hello _ _ _ _ _) = 0xd1
-cmdCode (Whisper _) = 0xd2
-cmdCode (Shout _ _) = 0xd3
-cmdCode (Join _ _) = 0xd4
-cmdCode (Leave _ _) = 0xd5
-cmdCode Ping = 0xd6
-cmdCode PingOk = 0xd7
+cmdCode (Hello _ _ _ _ _) = 0x01
+cmdCode (Whisper _) =       0x02
+cmdCode (Shout _ _) =       0x03
+cmdCode (Join _ _) =        0x04
+cmdCode (Leave _ _) =       0x05
+cmdCode Ping =              0x06
+cmdCode PingOk =            0x07
 
 getContent (Whisper c) = c
 getContent (Shout _ c) = c
@@ -203,13 +197,13 @@ parseCmd from frames = do
           else do
 
             cmd <- case cmd of
-              0xd1 -> parseHello
-              0xd2 -> pure $ Whisper frames -- parseWhisper
-              0xd3 -> parseShout frames
-              0xd4 -> parseJoin
-              0xd5 -> parseLeave
-              0xd6 -> pure Ping
-              0xd7 -> pure PingOk
+              0x01 -> parseHello
+              0x02 -> pure $ Whisper frames -- parseWhisper
+              0x03 -> parseShout frames
+              0x04 -> parseJoin
+              0x05 -> parseLeave
+              0x06 -> pure Ping
+              0x07 -> pure PingOk
               _    -> fail "Unknown command"
 
             return $ ZREMsg (Just uuid) seq Nothing cmd
