@@ -97,7 +97,7 @@ pinger s pt = forever $ do
         else return ()
 
   -- FIXME: less retarded scheduling
-  threadDelay 10000
+  threadDelay 100000
 
 lookupPeer s uuid = do
   st <- readTVar s

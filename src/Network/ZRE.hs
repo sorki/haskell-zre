@@ -44,9 +44,6 @@ import GHC.Conc
 dbg x = return ()
 --dbg x = x
 
-sec n = n * 1000000
-msec n = n * 1000
-
 oldmain = do
   --a <- async $ runZre app
   runZre appW
@@ -56,7 +53,7 @@ oldmain = do
       --msg <- atomically $ readTBQueue inQ
       --print msg
       atomically $ writeTBQueue outQ ("shout", Shout "chat" ["13337!"])
-      threadDelay (sec 1)
+      --threadDelay (sec 1)
     -- forever shout
     appS inQ outQ =
       runConcurrently $ Concurrently (recv) *> Concurrently (broadcast)
@@ -66,7 +63,7 @@ oldmain = do
           print msg
         broadcast = forever $ do
           atomically $ writeTBQueue outQ ("shout", Shout "chat" ["13337!"])
-          threadDelay (sec 1)
+          --threadDelay (sec 1)
 
     -- chat
     app inQ outQ = do
@@ -202,6 +199,8 @@ handleApi s action = atomically $ do
 inbox s inQ msg@ZREMsg{..} = do
   let uuid = fromJust msgFrom
 
+  dbg $ B.putStrLn "msg"
+  dbg $ print msg
   dbg $ B.putStrLn "state pre-msg"
   dbg $ printAll s
 
@@ -225,7 +224,7 @@ inbox s inQ msg@ZREMsg{..} = do
       -- FIXME: check if the received message is hello
       atomically $ updatePeer peer $ \x -> x { peerSeq = msgSeq }
 
-      -- FIXME: also emit join/leave/hello and peer destroy
+      -- FIXME: also emit hello and peer destroy
       case msgCmd of
         (Whisper content) -> do
           atomically $ emit s $ Message msg

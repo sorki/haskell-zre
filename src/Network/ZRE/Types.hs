@@ -18,6 +18,10 @@ import System.ZMQ4.Endpoint
 mCastPort = 5670 :: Port
 mCastIP = "225.25.25.25"
 
+--sec :: (Num a, Fractional b) => a -> b
+sec  = (*1000000)
+msec = (*1000)
+
 -- send beacon every 1 second
 --zreBeaconMs = 1000000
 
@@ -25,8 +29,13 @@ mCastIP = "225.25.25.25"
 zreBeaconMs = 100000 :: Int
 
 -- send hugz after x mseconds
-quietPeriod = 200000 / 1000000.0 :: NominalDiffTime
-deadPeriod = 600000  / 1000000.0 :: NominalDiffTime
+-- agressive
+--quietPeriod = (msec 200) / 1000000.0 :: NominalDiffTime
+--deadPeriod = (msec 600) / 1000000.0 :: NominalDiffTime
+
+-- lazy
+quietPeriod = (sec 1) / 1000000.0 :: NominalDiffTime
+deadPeriod = (sec 5)  / 1000000.0 :: NominalDiffTime
 
 -- send beacon every 1 ms (much aggressive, will kill networkz)
 --zreBeaconMs = 1000 :: Int
