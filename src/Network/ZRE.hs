@@ -44,96 +44,6 @@ import GHC.Conc
 dbg x = return ()
 --dbg x = x
 
-oldmain = do
-  --a <- async $ runZre app
-  runZre appW
-
-  where
-    appF inQ outQ = forever $ do
-      --msg <- atomically $ readTBQueue inQ
-      --print msg
-      atomically $ writeTBQueue outQ ("shout", Shout "chat" ["13337!"])
-      --threadDelay (sec 1)
-    -- forever shout
-    appS inQ outQ =
-      runConcurrently $ Concurrently (recv) *> Concurrently (broadcast)
-      where
-        recv = forever $ do
-          msg <- atomically $ readTBQueue inQ
-          print msg
-        broadcast = forever $ do
-          atomically $ writeTBQueue outQ ("shout", Shout "chat" ["13337!"])
-          --threadDelay (sec 1)
-
-    -- chat
-    app inQ outQ = do
-      call $ join "CHAT"
-      runConcurrently $ Concurrently (recv) *> Concurrently (broadcast)
-      where
-        recv = forever $ do
-          evt <- atomically $ readTBQueue inQ
-          case evt of
-            New peer -> do
-              --call $ whisper peer "ohai"
-              B.putStrLn $ B.intercalate " " ["New peer", printPeer peer]
-            Update peer -> B.putStrLn $ B.intercalate " " ["Update peer", printPeer peer]
-            Quit peer -> B.putStrLn $ B.intercalate " " ["Peer quit", printPeer peer]
-            GroupJoin peer group -> B.putStrLn $ B.intercalate " " ["Join group", group, printPeer peer]
-            GroupLeave peer group -> B.putStrLn $ B.intercalate " " ["Leave group", group, printPeer peer]
-            Message m@ZREMsg{..} -> do
-              B.putStrLn $ bshow m
-              case msgCmd of
-                (Shout group content) -> B.putStrLn $ B.intercalate " " ["shout for group", group, ">", B.concat content]
-                (Whisper content) -> B.putStrLn $ B.intercalate " " ["whisper", B.concat content]
-
-        broadcast = forever $ do
-          B.putStr " >"
-          msg <- fmap B.pack getLine
-          call $ shout "CHAT" msg
-          return ()
-
-        call x = atomically $ writeTBQueue outQ x
-
-    appW inQ outQ = do
-      call $ join "pool"
-      runConcurrently $ Concurrently (recv) *> Concurrently (broadcast)
-       where
-        recv = forever $ do
-          evt <- atomically $ readTBQueue inQ
-          case evt of
-            New peer -> do
-              --call $ whisper peer "ohai"
-              B.putStrLn $ B.intercalate " " ["New peer", printPeer peer]
-            Update peer -> B.putStrLn $ B.intercalate " " ["Update peer", printPeer peer]
-            Quit peer -> B.putStrLn $ B.intercalate " " ["Peer quit", printPeer peer]
-            GroupJoin peer group -> B.putStrLn $ B.intercalate " " ["Join group", group, printPeer peer]
-            GroupLeave peer group -> B.putStrLn $ B.intercalate " " ["Leave group", group, printPeer peer]
-            Message m@ZREMsg{..} -> do
-              B.putStrLn $ bshow m
-              case msgCmd of
-                (Shout group content) -> B.putStrLn $ B.intercalate " " ["shout for group", group, ">", B.concat content]
-                (Whisper content) -> do
-                  B.putStrLn $ B.intercalate " " ["whisper", B.concat content]
-                  call $ shout "pool" (B.intercalate " " ["taking job", B.concat content])
-                  call $ join $ B.concat content
-                  mapM_ (\x -> (call $ shout (B.concat content) x) >> threadDelay 100000) (replicate 100 "lala")
-
-        broadcast = forever $ do
-          B.putStr " >"
-          msg <- fmap B.pack getLine
-          call $ shout "CHAT" msg
-          return ()
-
-        call x = atomically $ writeTBQueue outQ x
-
-
-join = DoJoin
-leave = DoLeave
-shout = DoShout
-whisper = DoWhisper
-
-maybeM err f value = value >>= maybe err f
-
 runZre app = do
     dr <- getDefRoute
     case dr of
@@ -147,7 +57,7 @@ runZre app = do
 
             u <- maybeM (exitFail "Unable to get UUID") return nextUUID
             zmqPort <- randPort
-            let uuid = uuidByteString u -- BL.toStrict $ toByteString $ fromJust u
+            let uuid = uuidByteString u
             (mCastAddr:_) <- getAddrInfo Nothing (Just mCastIP) (Just $ show mCastPort)
 
             let mCastEndpoint = newTCPEndpointAddrInfo mCastAddr mCastPort
@@ -158,9 +68,6 @@ runZre app = do
             inQ <- atomically $ newTBQueue 10
             outQ <- atomically $ newTBQueue 10
             s <- newZREState name endpoint u inQ outQ
-            -- new ZRE context
-
-            -- api queues
 
             runConcurrently $ Concurrently (beaconRecv s) *>
                               Concurrently (beacon mCastAddr uuid zmqPort) *>
@@ -169,15 +76,10 @@ runZre app = do
                               Concurrently (app inQ outQ)
             return ()
 
-api s = forever $ do
-  action <- atomically $ do
-    st <- readTVar s
-    readTBQueue (zreOut st)
+api s = forever $ atomically $
+  readTVar s >>= readTBQueue . zreOut >>= handleApi s
 
-  handleApi s action
-  --printAll s
-
-handleApi s action = atomically $ do
+handleApi s action = do
   case action of
     DoJoin group -> do
       incGroupSeq s
@@ -203,6 +105,8 @@ handleApi s action = atomically $ do
   where
     incGroupSeq s = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }
 
+-- handles incoming ZRE messages
+-- creates peers, updates state
 inbox s inQ msg@ZREMsg{..} = do
   let uuid = fromJust msgFrom
 
@@ -252,8 +156,8 @@ inbox s inQ msg@ZREMsg{..} = do
         Ping -> atomically $ msgPeerUUID s uuid PingOk
         PingOk -> return ()
         h@(Hello endpoint groups groupSeq name headers) -> do
-          -- if this peer was already registered (e.g. from beacon) update appropriate data
-          -- FIXME: refactor to updateFromHello
+          -- if this peer was already registered
+          -- (e.g. from beacon) update appropriate data
           atomically $ do
             joinGroups s peer groups groupSeq
             updatePeer peer $ \x -> x { peerName = name }
@@ -265,7 +169,7 @@ inbox s inQ msg@ZREMsg{..} = do
   dbg $ printAll s
 
 beaconRecv s = do
-    sock <- multicastReceiver mCastIP 5670
+    sock <- multicastReceiver mCastIP (fromIntegral mCastPort)
     forever $ do
         (msg, addr) <- recvFrom sock 22
         case parseBeacon msg of
@@ -277,6 +181,9 @@ beaconRecv s = do
               x@(SockAddrInet6 _hisport _ h _) -> do
                 beaconHandle s (showSockAddrBS x) uuid (fromIntegral port)
 
+-- handle messages received on beacon
+-- creates new peers
+-- updates peers last heard
 beaconHandle s addr uuid port = do
     st <- atomically $ readTVar s
 
@@ -301,6 +208,7 @@ beaconHandle s addr uuid port = do
 --      bind s (addrAddress addr)
 --      return s
 
+-- sends udp multicast beacons
 beacon addr uuid port = do
     withSocketsDo $ do
       bracket (getSocket addr) close (talk (addrAddress addr))
@@ -312,7 +220,6 @@ beacon addr uuid port = do
       bind s (addrAddress addr)
       return s
     talk addr s = forever $ do
-      --putStrLn "send"
       sendTo s (zreBeacon uuid port) addr
       threadDelay zreBeaconMs
 

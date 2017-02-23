@@ -19,18 +19,15 @@ import Network.ZRE.Types
 import Network.ZRE.Utils
 
 main :: IO ()
---main = oldmain
 main = runZre chatApp
 
 chatApp inQ outQ = do
-      --call $ join "CHAT2"
       concurrentZre recv act
       where
         recv = forever $ do
           evt <- readZreQueue inQ
           case evt of
             New peer -> do
-              --call $ whisper peer "ohai"
               B.putStrLn $ B.intercalate " " ["New peer", printPeer peer]
             Update peer -> B.putStrLn $ B.intercalate " " ["Update peer", printPeer peer]
             Quit peer -> B.putStrLn $ B.intercalate " " ["Peer quit", printPeer peer]

@@ -50,7 +50,7 @@ data Event =
   | GroupLeave Peer Group
   | Quit Peer
   | Message ZREMsg
---  deriving (Show)
+  deriving (Show)
 
 data API =
     DoJoin Group
@@ -58,6 +58,7 @@ data API =
   | DoShout Group B.ByteString
   | DoShoutMulti Group [B.ByteString]
   | DoWhisper UUID B.ByteString
+  deriving (Show)
 
 type Peers = M.Map UUID (TVar Peer)
 type PeerGroups = M.Map Group Peers
@@ -87,6 +88,14 @@ data Peer = Peer {
   , peerQueue     :: TBQueue ZRECmd
   , peerLastHeard :: UTCTime
   }
+  deriving (Show)
+
+instance Show a => Show (TBQueue a) where
+  show = pure "TBQueue"
+
+instance Show a => Show (Async a) where
+  show = pure "Async"
+
 
 newZREState name endpoint u inQ outQ = atomically $ newTVar $
   ZREState {
@@ -100,3 +109,11 @@ newZREState name endpoint u inQ outQ = atomically $ newTVar $
     , zreHeaders = M.empty
     , zreIn = inQ
     , zreOut = outQ }
+
+join = DoJoin
+leave = DoLeave
+shout = DoShout
+shout' = DoShoutMulti
+whisper = DoWhisper
+
+maybeM err f value = value >>= maybe err f
