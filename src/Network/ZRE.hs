@@ -155,8 +155,9 @@ runZre app = do
 
             inQ <- atomically $ newTBQueue 10
             outQ <- atomically $ newTBQueue 10
+            s <- newZREState name endpoint u inQ outQ
             -- new ZRE context
-            s <- atomically $ newTVar $ ZREState (fromJust u) M.empty M.empty endpoint Set.empty 0 name M.empty inQ outQ
+
             -- api queues
 
             runConcurrently $ Concurrently (beaconRecv s) *>

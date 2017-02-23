@@ -9,6 +9,7 @@ import Control.Concurrent.STM
 import Control.Concurrent.STM.TBQueue
 import Data.UUID
 import qualified Data.Map as M
+import qualified Data.Set as Set
 import qualified Data.ByteString.Char8 as B
 import Data.Time.Clock
 
@@ -61,7 +62,6 @@ data API =
 type Peers = M.Map UUID (TVar Peer)
 type PeerGroups = M.Map Group Peers
 
--- zreUS :: Peer ???
 data ZREState = ZREState {
     zreUUID       :: UUID
   , zrePeers      :: Peers
@@ -88,19 +88,15 @@ data Peer = Peer {
   , peerLastHeard :: UTCTime
   }
 
-newtype ZRET m a = ZRE { runZRE :: RWST ZREReader [ZREWriter] ZREState m a }
-  deriving (Monad,
-            Functor,
-            Applicative,
-            MonadReader ZREReader,
-            MonadWriter [ZREWriter],
-            MonadState ZREState)
-
-type ZRE = ZRET Identity
-
-data ZREReader = ZREReader {
-  readName :: B.ByteString
-  }
-
-data ZREWriter =
-  Event ZREMsg
+newZREState name endpoint (Just u) inQ outQ = atomically $ newTVar $
+  ZREState {
+    zreUUID = u
+    , zrePeers = M.empty
+    , zrePeerGroups = M.empty
+    , zreEndpoint = endpoint
+    , zreGroups = Set.empty
+    , zreGroupSeq = 0
+    , zreName = name
+    , zreHeaders = M.empty
+    , zreIn = inQ
+    , zreOut = outQ }
