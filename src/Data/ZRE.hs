@@ -58,8 +58,10 @@ zreBeacon uuid port = BL.toStrict $ runPut $ do
   -- XXX: for compatibility with zyre implementation
   -- this should use 0x01 instead, but why when
   -- we can stick zre version there and use it for filtering?
-  putInt8 $ fromIntegral 0x01
-  --putInt8 $ fromIntegral zreVer
+  -- for now leave in compat mode as we don't
+  -- assert this but zyre does
+  putInt8 $ fromIntegral 0x01 -- compat
+  --putInt8 $ fromIntegral zreVer -- non-compat
   putByteString uuid
   putInt16be $ fromIntegral port
 
