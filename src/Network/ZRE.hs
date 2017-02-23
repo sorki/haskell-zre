@@ -177,13 +177,15 @@ api s = forever $ do
 handleApi s action = atomically $ do
   case action of
     DoJoin group -> do
-      st <- readTVar s
+      incGroupSeq s
       modifyTVar s $ \x -> x { zreGroups = Set.insert group (zreGroups x) }
+      st <- readTVar s
       msgAll s $ Join group (zreGroupSeq st)
 
     DoLeave group -> do
-      st <- readTVar s
+      incGroupSeq s
       modifyTVar s $ \x -> x { zreGroups = Set.delete group (zreGroups x) }
+      st <- readTVar s
       msgAll s $ Leave group (zreGroupSeq st)
 
     DoShoutMulti group mmsg -> msgGroup s group $ Shout group mmsg
@@ -195,6 +197,8 @@ handleApi s action = atomically $ do
         Just peer -> do
           p <- readTVar peer
           msgPeerUUID s (peerUUID p) $ Whisper [msg]
+  where
+    incGroupSeq s = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }
 
 inbox s inQ msg@ZREMsg{..} = do
   let uuid = fromJust msgFrom
