@@ -216,5 +216,6 @@ parseZre from msg frames = flip runGet msg $ do
   if sig /= zreSig
     then fail "Signature mismatch"
     else do
-      res <- parseCmd from frames
+      -- we need to drop 1st byte of from string which is '1':UUID (17 bytes)
+      res <- parseCmd (B.tail from) frames
       return res
