@@ -132,6 +132,8 @@ leave = DoLeave
 shout = DoShout
 whisper = DoWhisper
 
+maybeM err f value = value >>= maybe err f
+
 runZre app = do
     dr <- getDefRoute
     case dr of
@@ -143,9 +145,9 @@ runZre app = do
           Nothing -> exitFail "Unable to get info for interace"
           (Just NetworkInterface{..}) -> do
 
-            u <- nextUUID
+            u <- maybeM (exitFail "Unable to get UUID") return nextUUID
             zmqPort <- randPort
-            let uuid = uuidByteString $ fromJust u -- BL.toStrict $ toByteString $ fromJust u
+            let uuid = uuidByteString u -- BL.toStrict $ toByteString $ fromJust u
             (mCastAddr:_) <- getAddrInfo Nothing (Just mCastIP) (Just $ show mCastPort)
 
             let mCastEndpoint = newTCPEndpointAddrInfo mCastAddr mCastPort

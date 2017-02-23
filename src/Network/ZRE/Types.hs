@@ -88,7 +88,7 @@ data Peer = Peer {
   , peerLastHeard :: UTCTime
   }
 
-newZREState name endpoint (Just u) inQ outQ = atomically $ newTVar $
+newZREState name endpoint u inQ outQ = atomically $ newTVar $
   ZREState {
     zreUUID = u
     , zrePeers = M.empty
