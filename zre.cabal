@@ -22,6 +22,8 @@ library
                        , Network.ZRE.Types
                        , Network.ZRE.ZMQ
                        , Data.ZRE
+                       , Data.ZMQParse
+                       , Data.ZGossip
                        , System.ZMQ4.Endpoint
   build-depends:       base >= 4.7 && < 5
                      , async

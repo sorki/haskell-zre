@@ -22,6 +22,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import System.ZMQ4.Endpoint
+import Data.ZMQParse
 
 zreVer = 2 :: Int
 zreSig = 0xAAA1 :: Word16
@@ -52,19 +53,13 @@ data ZRECmd =
   | PingOk
   deriving (Show, Eq, Ord)
 
--- to utils
-getInt8 :: Get Int
-getInt8  = fromIntegral <$> getWord8
-getInt16 = fromIntegral <$> getWord16be
-getInt32 = fromIntegral <$> getWord32be
-
 zreBeacon uuid port = BL.toStrict $ runPut $ do
   putByteString "ZRE"
   -- XXX: for compatibility with zyre implementation
   -- this should use 0x01 instead, but why when
   -- we can stick zre version there and use it for filtering?
-  -- putInt8 $ fromIntegral 0x01
-  putInt8 $ fromIntegral zreVer
+  putInt8 $ fromIntegral 0x01
+  --putInt8 $ fromIntegral zreVer
   putByteString uuid
   putInt16be $ fromIntegral port
 
@@ -81,36 +76,13 @@ parseBeacon = runGet $ do
   port <- fromIntegral <$> getWord16be
   return (lead, ver, uuid, port)
 
-putByteStringLen x = do
-  putInt8 $ fromIntegral $ B.length x
-  putByteString x
-
-putLongByteStringLen x = do
-  putInt16be $ fromIntegral $ B.length x
-  putByteString x
-
-putByteStrings x = do
-  putInt32be $ fromIntegral $ length x
-  mapM_ putLongByteStringLen x
-  where lx = length x
-
-putKV (k, v) = do
-  putByteStringLen k
-  putLongByteStringLen v
-
-putMap map = do
-  count <- putInt32be $ fromIntegral $ length ml
-  mapM_ putKV ml
-  where ml = M.toList map
-
-
 cmdCode (Hello _ _ _ _ _) = 0x01
-cmdCode (Whisper _) =       0x02
-cmdCode (Shout _ _) =       0x03
-cmdCode (Join _ _) =        0x04
-cmdCode (Leave _ _) =       0x05
-cmdCode Ping =              0x06
-cmdCode PingOk =            0x07
+cmdCode (Whisper _)       = 0x02
+cmdCode (Shout _ _)       = 0x03
+cmdCode (Join _ _)        = 0x04
+cmdCode (Leave _ _)       = 0x05
+cmdCode Ping              = 0x06
+cmdCode PingOk            = 0x07
 
 getContent (Whisper c) = c
 getContent (Shout _ c) = c
@@ -141,31 +113,6 @@ encodeCmd (Leave group statusSeq) = do
   putByteStringLen group
   putInt8 $ fromIntegral statusSeq
 encodeCmd _ = return ()
-
-parseString = do
-  len <- getInt8
-  st <- getByteString len
-  return st
-
-parseLongString = do
-  len <- getInt16
-  st <- getByteString len
-  return st
-
-parseStrings = do
-  count <- getInt32
-  res <- sequence $ replicate count parseLongString
-  return res
-
-parseKV = do
-  key <- parseString
-  value <- parseLongString
-  return (key, value)
-
-parseMap = do
-  count <- getInt32
-  res <- sequence $ replicate count parseKV
-  return $ M.fromList res
 
 parseHello = Hello
   <$> parseEndpoint'
