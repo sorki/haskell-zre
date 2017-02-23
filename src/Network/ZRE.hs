@@ -124,18 +124,33 @@ inbox s inQ msg@ZREMsg{..} = do
         h@(Hello endpoint groups groupSeq name headers) -> do
           liftIO $ dbg $ B.putStrLn $ B.concat ["From hello"]
           peer <- makePeer s uuid $ newPeerFromHello h
-          void $ atomically $ joinGroups s peer groups groupSeq
+          atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
         -- silently drop any other messages
         _ -> return ()
 
     (Just peer) -> do
       atomically $ updateLastHeard peer $ fromJust msgTime
 
-      -- FIXME: acually check sequence numbers
-      -- FIXME: check if the received message is hello
-      atomically $ updatePeer peer $ \x -> x { peerSeq = msgSeq }
+      -- destroy/re-start peer when this doesn't match
+      case peerSeq p == msgSeq of
+        True -> do
+          -- rename to peerExpectSeq, need to update at line 127 too
+          atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
+          handleCmd s msg peer
+        _ -> do
+          dbg $ B.putStrLn "sequence mismatch, recreating peer"
+          recreatePeer s (peerUUID p) msgCmd
 
-      -- FIXME: also emit hello and peer destroy
+  dbg $ B.putStrLn "state post-msg"
+  dbg $ printAll s
+  where
+    recreatePeer s uuid hello = do
+          destroyPeer s uuid
+          peer <- makePeer s uuid $ newPeerFromHello hello
+          atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
+    recreatePeer s uuid _ = destroyPeer s uuid
+
+handleCmd s msg@ZREMsg{..}  peer = do
       case msgCmd of
         (Whisper content) -> do
           atomically $ emit s $ Message msg
@@ -153,20 +168,19 @@ inbox s inQ msg@ZREMsg{..} = do
           atomically $ leaveGroup s peer group groupSeq
           dbg $ B.putStrLn $ B.intercalate " " ["leave", group, bshow groupSeq]
 
-        Ping -> atomically $ msgPeerUUID s uuid PingOk
+        Ping -> atomically $ msgPeer peer PingOk
         PingOk -> return ()
         h@(Hello endpoint groups groupSeq name headers) -> do
           -- if this peer was already registered
           -- (e.g. from beacon) update appropriate data
           atomically $ do
             joinGroups s peer groups groupSeq
-            updatePeer peer $ \x -> x { peerName = name }
+            updatePeer peer $ \x -> x {
+                         peerName = name
+                       }
             p <- readTVar peer
             emit s $ Update p
           return ()
-
-  dbg $ B.putStrLn "state post-msg"
-  dbg $ printAll s
 
 beaconRecv s = do
     sock <- multicastReceiver mCastIP (fromIntegral mCastPort)
@@ -222,8 +236,3 @@ beacon addr uuid port = do
     talk addr s = forever $ do
       sendTo s (zreBeacon uuid port) addr
       threadDelay zreBeaconMs
-
-
-readZreQueue inQ = atomically $ readTBQueue inQ
-writeZreQueue outQ x = atomically $ writeTBQueue outQ x
-concurrentZre recv act = runConcurrently $ Concurrently (recv) *> Concurrently (act)

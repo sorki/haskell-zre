@@ -27,25 +27,37 @@ printPeer Peer{..} = B.intercalate " "
     bshow peerGroups,
     bshow peerLastHeard]
 
-newPeer s endpoint uuid groups name t = do
+newPeer s endpoint uuid groups groupSeq name t = do
   st <- readTVar s
   peerQ <- newTBQueue 10
   writeTBQueue peerQ $ Hello (zreEndpoint st) (zreGroups st) (zreGroupSeq st) (zreName st) (zreHeaders st)
 
-  let p = Peer endpoint uuid 0 groups 0 name Nothing Nothing peerQ t
+  let p = Peer {
+              peerEndpoint  = endpoint
+            , peerUUID      = uuid
+            , peerSeq       = 1
+            , peerGroups    = groups
+            , peerGroupSeq  = 0
+            , peerName      = name
+            , peerAsync     = Nothing
+            , peerAsyncPing = Nothing
+            , peerQueue     = peerQ
+            , peerLastHeard = t }
   np <- newTVar $ p
 
   modifyTVar s $ \x -> x { zrePeers = M.insert uuid np (zrePeers x) }
 
   emit s $ New p
 
+  joinGroups s np groups groupSeq
+
   return $ (np, Just $ dealer endpoint (zreUUID st) peerQ, Just $ pinger s np)
 
 newPeerFromBeacon addr port t uuid s = do
   let endpoint = newTCPEndpoint addr port
-  newPeer s endpoint uuid (Set.empty :: Groups) "<unknown>" t
+  newPeer s endpoint uuid (Set.empty :: Groups) 0 "<unknown>" t
 newPeerFromHello (Hello endpoint groups groupSeq name headers) t uuid s =
-  newPeer s endpoint uuid groups name t
+  newPeer s endpoint uuid groups groupSeq name t
 
 makePeer s uuid newPeerFn = do
   t <- getCurrentTime
@@ -74,9 +86,9 @@ destroyPeer s uuid = do
       Nothing -> return []
       (Just peer) -> do
         p@Peer{..} <- readTVar peer
-        emit s $ Quit p
         modifyTVar s $ \x -> x { zrePeers = M.delete uuid (zrePeers x) } 
         leaveGroups s peer peerGroups peerGroupSeq
+        emit s $ Quit p
 
         return [peerAsync, peerAsyncPing]
 
@@ -86,8 +98,8 @@ destroyPeer s uuid = do
     cancelM Nothing = return ()
     cancelM (Just a) = cancel a
 
-pinger s pt = forever $ do
-  Peer{..} <- atomically $ readTVar pt
+pinger s peer = forever $ do
+  Peer{..} <- atomically $ readTVar peer
   now <- getCurrentTime
   if diffUTCTime now peerLastHeard > deadPeriod
     then destroyPeer s peerUUID
