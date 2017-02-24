@@ -1,10 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 module Network.ZRE.Types where
 
 import Control.Monad.RWS hiding (state)
 import Control.Monad.Reader
 import Control.Monad.Identity
+import Control.Monad.Base
+import Control.Monad.Trans.Control
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.Concurrent.STM.TBQueue
@@ -65,6 +70,9 @@ data API =
 type Peers = M.Map UUID (TVar Peer)
 type PeerGroups = M.Map Group Peers
 
+type EventQueue = TBQueue Event
+type APIQueue = TBQueue API
+
 data ZREState = ZREState {
     zreUUID       :: UUID
   , zrePeers      :: Peers
@@ -74,8 +82,8 @@ data ZREState = ZREState {
   , zreGroupSeq   :: GroupSeq
   , zreName       :: Name
   , zreHeaders    :: Headers
-  , zreIn         :: TBQueue Event
-  , zreOut        :: TBQueue API
+  , zreIn         :: EventQueue
+  , zreOut        :: APIQueue
   }
 
 data Peer = Peer {
@@ -98,6 +106,51 @@ instance Show a => Show (TBQueue a) where
 instance Show a => Show (Async a) where
   show = pure "Async"
 
+newtype ZRE a = Z {
+  runZ' :: ReaderT (EventQueue, APIQueue) IO a
+}
+  deriving (Functor, Applicative, Monad, MonadIO,
+    MonadBase IO,
+--    MonadBaseControl IO,
+    MonadReader (EventQueue, APIQueue))
+
+--type instance StM ZRE a = a
+
+instance MonadBaseControl IO ZRE where
+  type StM ZRE a = a
+  liftBaseWith f = Z $ liftBaseWith $ \q -> f (q . runZ')
+  restoreM = Z . restoreM
+
+runZ app events api = runReaderT (runZ' app) (events, api)
+
+readZ :: ZRE (Event)
+readZ = do
+  (e, _) <- ask
+  v <- liftIO $ atomically $ readTBQueue e
+  return v
+
+writeZ :: API -> ZRE ()
+writeZ x = do
+  (_, a) <- ask
+  liftIO $ atomically $ writeTBQueue a x
+
+readZreQueue inQ = atomically $ readTBQueue inQ
+writeZreQueue outQ x = atomically $ writeTBQueue outQ x
+concurrentZre recv act = runConcurrently $ Concurrently (recv) *> Concurrently (act)
+
+zjoin = writeZ . DoJoin
+zleave = writeZ . DoLeave
+zshout group msg = writeZ $ DoShout group msg
+zshout' group msgs = writeZ $ DoShoutMulti group msgs
+zwhisper uuid msg = writeZ $ DoWhisper uuid msg
+
+join = DoJoin
+leave = DoLeave
+shout = DoShout
+shout' = DoShoutMulti
+whisper = DoWhisper
+
+maybeM err f value = value >>= maybe err f
 
 newZREState name endpoint u inQ outQ = atomically $ newTVar $
   ZREState {
@@ -111,11 +164,3 @@ newZREState name endpoint u inQ outQ = atomically $ newTVar $
     , zreHeaders = M.empty
     , zreIn = inQ
     , zreOut = outQ }
-
-join = DoJoin
-leave = DoLeave
-shout = DoShout
-shout' = DoShoutMulti
-whisper = DoWhisper
-
-maybeM err f value = value >>= maybe err f
