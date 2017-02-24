@@ -132,6 +132,7 @@ inbox s inQ msg@ZREMsg{..} = do
       atomically $ updateLastHeard peer $ fromJust msgTime
 
       -- destroy/re-start peer when this doesn't match
+      p <- atomically $ readTVar peer
       case peerSeq p == msgSeq of
         True -> do
           -- rename to peerExpectSeq, need to update at line 127 too
@@ -144,9 +145,9 @@ inbox s inQ msg@ZREMsg{..} = do
   dbg $ B.putStrLn "state post-msg"
   dbg $ printAll s
   where
-    recreatePeer s uuid hello = do
+    recreatePeer s uuid h@(Hello _ _ _ _ _) = do
           destroyPeer s uuid
-          peer <- makePeer s uuid $ newPeerFromHello hello
+          peer <- makePeer s uuid $ newPeerFromHello h
           atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
     recreatePeer s uuid _ = destroyPeer s uuid
 
@@ -176,10 +177,10 @@ handleCmd s msg@ZREMsg{..}  peer = do
           atomically $ do
             joinGroups s peer groups groupSeq
             updatePeer peer $ \x -> x {
-                         peerName = name
+                         peerName = Just name
                        }
             p <- readTVar peer
-            emit s $ Update p
+            emit s $ Ready p
           return ()
 
 beaconRecv s = do

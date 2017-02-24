@@ -29,7 +29,7 @@ chatApp inQ outQ = do
           case evt of
             New peer -> do
               B.putStrLn $ B.intercalate " " ["New peer", printPeer peer]
-            Update peer -> B.putStrLn $ B.intercalate " " ["Update peer", printPeer peer]
+            Ready peer -> B.putStrLn $ B.intercalate " " ["Ready peer", printPeer peer]
             Quit peer -> B.putStrLn $ B.intercalate " " ["Peer quit", printPeer peer]
             GroupJoin peer group -> B.putStrLn $ B.intercalate " " ["Join group", group, printPeer peer]
             GroupLeave peer group -> B.putStrLn $ B.intercalate " " ["Leave group", group, printPeer peer]

@@ -3,6 +3,7 @@
 module Network.ZRE.Types where
 
 import Control.Monad.RWS hiding (state)
+import Control.Monad.Reader
 import Control.Monad.Identity
 import Control.Concurrent.Async
 import Control.Concurrent.STM
@@ -45,11 +46,12 @@ deadPeriod = (sec 5)  / 1000000.0 :: NominalDiffTime
 
 data Event =
     New Peer
-  | Update Peer
+  | Ready Peer
   | GroupJoin Peer Group
   | GroupLeave Peer Group
   | Quit Peer
   | Message ZREMsg
+  -- TODO: rewrite dbg to emit $ Debug msg
   deriving (Show)
 
 data API =
@@ -82,7 +84,7 @@ data Peer = Peer {
   , peerSeq       :: Seq
   , peerGroups    :: Groups
   , peerGroupSeq  :: GroupSeq
-  , peerName      :: Name
+  , peerName      :: Maybe Name
   , peerAsync     :: Maybe (Async ())
   , peerAsyncPing :: Maybe (Async ())
   , peerQueue     :: TBQueue ZRECmd

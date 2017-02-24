@@ -20,14 +20,14 @@ import Network.ZRE.ZMQ (dealer)
 
 printPeer Peer{..} = B.intercalate " " 
   ["Peer",
-    peerName,
+    bshow peerName,
     pEndpoint peerEndpoint,
     bshow peerSeq,
     bshow peerGroupSeq,
     bshow peerGroups,
     bshow peerLastHeard]
 
-newPeer s endpoint uuid groups groupSeq name t = do
+newPeer s endpoint uuid groups groupSeq mname t = do
   st <- readTVar s
   peerQ <- newTBQueue 10
   writeTBQueue peerQ $ Hello (zreEndpoint st) (zreGroups st) (zreGroupSeq st) (zreName st) (zreHeaders st)
@@ -38,7 +38,7 @@ newPeer s endpoint uuid groups groupSeq name t = do
             , peerSeq       = 1
             , peerGroups    = groups
             , peerGroupSeq  = 0
-            , peerName      = name
+            , peerName      = mname
             , peerAsync     = Nothing
             , peerAsyncPing = Nothing
             , peerQueue     = peerQ
@@ -48,6 +48,9 @@ newPeer s endpoint uuid groups groupSeq name t = do
   modifyTVar s $ \x -> x { zrePeers = M.insert uuid np (zrePeers x) }
 
   emit s $ New p
+  case mname of
+    (Just name) -> emit s $ Ready p
+    Nothing -> return ()
 
   joinGroups s np groups groupSeq
 
@@ -55,9 +58,9 @@ newPeer s endpoint uuid groups groupSeq name t = do
 
 newPeerFromBeacon addr port t uuid s = do
   let endpoint = newTCPEndpoint addr port
-  newPeer s endpoint uuid (Set.empty :: Groups) 0 "<unknown>" t
+  newPeer s endpoint uuid (Set.empty :: Groups) 0 Nothing t
 newPeerFromHello (Hello endpoint groups groupSeq name headers) t uuid s =
-  newPeer s endpoint uuid groups groupSeq name t
+  newPeer s endpoint uuid groups groupSeq (Just name) t
 
 makePeer s uuid newPeerFn = do
   t <- getCurrentTime
