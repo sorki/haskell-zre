@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 module Main where
 
@@ -29,7 +29,9 @@ main = runZre app
 app events api = runZ test events api
 
 --test = control $ \run -> print "kokot" -- dump -- `concurrently` worker
-test = dump `concurrently` worker
+--test = dump `concurrently` worker
+--test = dealer
+test = worker
 
 raw = forever $ readZ >>= liftIO .print
 
@@ -40,8 +42,9 @@ worker = forever $ do
       liftIO $ B.putStrLn $ B.concat content
       let group = B.concat content
       zjoin group
+      void $ async $ forever $ zshout group msg >> (liftIO $ threadDelay (1000000))
       --forever $ zshout group msg >> (liftIO $ threadDelay (1000000))
-      replicateM_ 10 $ zshout group msg >> (liftIO $ threadDelay (1000000))
+      --replicateM_ 10 $ zshout group msg >> (liftIO $ threadDelay (1000000))
     x -> liftIO $ print x
 
   where msg = B.concat $ replicate 10 "woooork"
