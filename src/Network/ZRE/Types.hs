@@ -19,6 +19,8 @@ import qualified Data.Set as Set
 import qualified Data.ByteString.Char8 as B
 import Data.Time.Clock
 
+import System.IO (Handle)
+
 import Data.ZRE
 import System.ZMQ4.Endpoint
 
@@ -65,6 +67,7 @@ data API =
   | DoShout Group B.ByteString
   | DoShoutMulti Group [B.ByteString]
   | DoWhisper UUID B.ByteString
+  | DoDiscover UUID Endpoint
   deriving (Show)
 
 type Peers = M.Map UUID (TVar Peer)
@@ -72,6 +75,7 @@ type PeerGroups = M.Map Group Peers
 
 type EventQueue = TBQueue Event
 type APIQueue = TBQueue API
+
 
 data ZREState = ZREState {
     zreUUID       :: UUID

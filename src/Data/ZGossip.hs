@@ -4,7 +4,18 @@
 -- zgossip protocol https://github.com/zeromq/czmq/blob/master/src/zgossip_msg.bnf
 -- client sends HELLO, recieves all stored tuples, forwards to other clients
 
-module Data.ZGossip where
+module Data.ZGossip (
+    newZGS
+  , parseZGS
+  , encodeZGS
+  , Key
+  , Value
+  , TTL
+  , Peer
+  , ZGSCmd(..)
+  , ZGSMsg(..)
+  ) where
+
 import Prelude hiding (putStrLn, take)
 import Control.Exception
 import Control.Monad
@@ -21,26 +32,26 @@ import Data.Binary.Put
 import qualified Data.Map as M
 import Data.Maybe
 import Data.Time.Clock
-import Data.Set (Set)
-import qualified Data.Set as Set
 
 import System.ZMQ4.Endpoint
 import Data.ZMQParse
 
+import Network.ZRE.Utils (bshow)
+
 zgsVer = 1 :: Int
 zgsSig = 0xAAA0 :: Word16
 
+type Peer = B.ByteString
 type Key = B.ByteString
 type Value = B.ByteString
 type TTL = Int
 
-data ZSGMsg = ZSGMsg {
-    msgFrom :: Maybe B.ByteString
-  , msgTime :: Maybe UTCTime
-  , msgCmd :: ZSGCmd
+data ZGSMsg = ZGSMsg {
+    zgsFrom :: Maybe B.ByteString
+  , zgsCmd :: ZGSCmd
   } deriving (Show, Eq, Ord)
 
-data ZSGCmd =
+data ZGSCmd =
     Hello
   | Publish Key Value TTL
   | Ping
@@ -54,15 +65,15 @@ cmdCode Ping            = 0x03
 cmdCode PingOk          = 0x04
 cmdCode Invalid         = 0x05
 
-newZSG cmd = ZSGMsg Nothing Nothing cmd
+newZGS cmd = ZGSMsg Nothing cmd
 
-encodeZSG ZSGMsg{..} = msg
+encodeZGS ZGSMsg{..} = msg
   where
     msg = BL.toStrict $ runPut $ do
       putWord16be zgsSig
-      putWord8 $ cmdCode msgCmd
+      putWord8 $ cmdCode zgsCmd
       putInt8 $ fromIntegral zgsVer
-      encodeCmd msgCmd
+      encodeCmd zgsCmd
 
 encodeCmd (Publish k v ttl) = do
   putByteStringLen k
@@ -91,10 +102,10 @@ parseCmd from = do
           0x05 -> pure Invalid
           _    -> fail "Unknown command"
 
-        return $ ZSGMsg (Just from) Nothing cmd
+        return $ ZGSMsg (Just from) cmd
 
 parseZGS [from, msg] = parseZgs from msg
-parseZGS _ = (Left "empty message", "")
+parseZGS x = (Left "empty message", bshow x)
 
 parseZgs from msg = flip runGet msg $ do
   sig <- getWord16be

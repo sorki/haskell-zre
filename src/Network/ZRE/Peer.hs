@@ -16,7 +16,7 @@ import Data.ZRE
 import System.ZMQ4.Endpoint
 import Network.ZRE.Types
 import Network.ZRE.Utils
-import Network.ZRE.ZMQ (dealer)
+import Network.ZRE.ZMQ (zreDealer)
 
 printPeer Peer{..} = B.intercalate " " 
   ["Peer",
@@ -54,13 +54,15 @@ newPeer s endpoint uuid groups groupSeq mname t = do
 
   joinGroups s np groups groupSeq
 
-  return $ (np, Just $ dealer endpoint (zreUUID st) peerQ, Just $ pinger s np)
+  return $ (np, Just $ zreDealer endpoint (uuidByteString $ zreUUID st) peerQ, Just $ pinger s np)
 
 newPeerFromBeacon addr port t uuid s = do
   let endpoint = newTCPEndpoint addr port
   newPeer s endpoint uuid (Set.empty :: Groups) 0 Nothing t
 newPeerFromHello (Hello endpoint groups groupSeq name headers) t uuid s =
   newPeer s endpoint uuid groups groupSeq (Just name) t
+newPeerFromEndpoint endpoint t uuid s =
+  newPeer s endpoint uuid (Set.empty :: Groups) 0 Nothing t
 
 makePeer s uuid newPeerFn = do
   t <- getCurrentTime
@@ -89,7 +91,7 @@ destroyPeer s uuid = do
       Nothing -> return []
       (Just peer) -> do
         p@Peer{..} <- readTVar peer
-        modifyTVar s $ \x -> x { zrePeers = M.delete uuid (zrePeers x) } 
+        modifyTVar s $ \x -> x { zrePeers = M.delete uuid (zrePeers x) }
         leaveGroups s peer peerGroups peerGroupSeq
         emit s $ Quit p
 

@@ -11,8 +11,9 @@ import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.Concurrent.STM.TBQueue
+import Network (listenOn, withSocketsDo, accept, PortID(..), Socket)
 import Network.BSD (getHostName)
-import Network.Socket hiding (send, sendTo, recv, recvFrom)
+import Network.Socket hiding (accept, send, sendTo, recv, recvFrom)
 import Network.Socket.ByteString
 import Network.Multicast
 import Network.SockAddr
@@ -33,16 +34,22 @@ import qualified Data.Map as M
 import Data.Binary.Strict.Get as G
 
 import Data.ZRE
+import qualified Data.ZGossip as ZGS
 import Network.ZRE.Utils
 import Network.ZRE.Peer
 import Network.ZRE.ZMQ
 import Network.ZRE.Types
 import System.ZMQ4.Endpoint
 
+import Network.ZGossip
+import Network.ZGossip.ZMQ
+
 import GHC.Conc
 
-dbg x = return ()
---dbg x = x
+--dbg x = return ()
+dbg x = x
+
+gossipPort = 31337
 
 runZre app = do
     dr <- getDefRoute
@@ -56,52 +63,73 @@ runZre app = do
           (Just NetworkInterface{..}) -> do
 
             u <- maybeM (exitFail "Unable to get UUID") return nextUUID
-            zmqPort <- randPort
+            zrePort <- randPort
             let uuid = uuidByteString u
             (mCastAddr:_) <- getAddrInfo Nothing (Just mCastIP) (Just $ show mCastPort)
 
+            (gossipAddr:_) <- getAddrInfo Nothing (Just "::1") (Just $ show gossipPort) --  show mCastPort)
+
             let mCastEndpoint = newTCPEndpointAddrInfo mCastAddr mCastPort
-            let endpoint = newTCPEndpoint (bshow ipv4) zmqPort
+            let zreEndpoint = newTCPEndpoint (bshow ipv4) zrePort
+
+            let gossipServerEndpoint = newTCPEndpoint "*" gossipPort
+            let gossipClientEndpoint = newTCPEndpoint "172.17.1.63" gossipPort
 
             name <- fmap B.pack getHostName
 
             inQ <- atomically $ newTBQueue 10
             outQ <- atomically $ newTBQueue 10
-            s <- newZREState name endpoint u inQ outQ
+
+            gossipQ <- atomically $ newTBQueue 10
+
+            atomically $ mapM_ (writeTBQueue gossipQ) [ZGS.Hello, ZGS.Publish "test" "127.0.0.1" 1337]
+            s <- newZREState name zreEndpoint u inQ outQ
 
             runConcurrently $ Concurrently (beaconRecv s) *>
-                              Concurrently (beacon mCastAddr uuid zmqPort) *>
-                              Concurrently (router zmqPort (inbox s inQ)) *>
+                              Concurrently (beacon mCastAddr uuid zrePort) *>
+                              --Concurrently (zgossipServer gossipServerEndpoint) *> -- zgsHandle) *>
+                              Concurrently (zgossipClient uuid gossipClientEndpoint zreEndpoint (zgossipZRE outQ)) *>
+                              Concurrently (zreRouter zreEndpoint (inbox s inQ)) *>
                               Concurrently (api s) *>
                               Concurrently (app inQ outQ)
             return ()
 
-api s = forever $ atomically $
-  readTVar s >>= readTBQueue . zreOut >>= handleApi s
+api s = forever $ do
+  a <- atomically $ readTVar s >>= readTBQueue . zreOut
+  handleApi s a
 
 handleApi s action = do
   case action of
-    DoJoin group -> do
+    DoJoin group -> atomically $ do
       incGroupSeq s
       modifyTVar s $ \x -> x { zreGroups = Set.insert group (zreGroups x) }
       st <- readTVar s
       msgAll s $ Join group (zreGroupSeq st)
 
-    DoLeave group -> do
+    DoLeave group -> atomically $ do
       incGroupSeq s
       modifyTVar s $ \x -> x { zreGroups = Set.delete group (zreGroups x) }
       st <- readTVar s
       msgAll s $ Leave group (zreGroupSeq st)
 
-    DoShoutMulti group mmsg -> msgGroup s group $ Shout group mmsg
-    DoShout group msg -> msgGroup s group $ Shout group [msg]
-    DoWhisper uuid msg -> do
+    DoShoutMulti group mmsg -> atomically $ msgGroup s group $ Shout group mmsg
+    DoShout group msg -> atomically $ msgGroup s group $ Shout group [msg]
+    DoWhisper uuid msg -> atomically $ do
       mpt <- lookupPeer s uuid
       case mpt of
         Nothing -> return ()
         Just peer -> do
           p <- readTVar peer
           msgPeerUUID s (peerUUID p) $ Whisper [msg]
+
+    DoDiscover uuid endpoint -> do
+      mp <- atomically $ lookupPeer s uuid
+      case mp of
+        Just _ -> return ()
+        Nothing -> do
+          dbg $ B.putStrLn $ B.concat ["New peer from discover ", B.pack $ show uuid, " (", pEndpoint endpoint, ")"]
+          void $ makePeer s uuid $ newPeerFromEndpoint endpoint
+      --return ()
   where
     incGroupSeq s = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }
 
@@ -122,7 +150,7 @@ inbox s inQ msg@ZREMsg{..} = do
         -- if the peer is not known but a message is HELLO we create a new
         -- peer, for other messages we don't know the endpoint to connect to
         h@(Hello endpoint groups groupSeq name headers) -> do
-          liftIO $ dbg $ B.putStrLn $ B.concat ["From hello"]
+          liftIO $ dbg $ B.putStrLn $ B.concat ["New peer from hello"]
           peer <- makePeer s uuid $ newPeerFromHello h
           atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
         -- silently drop any other messages
