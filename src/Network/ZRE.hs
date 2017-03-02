@@ -254,7 +254,7 @@ beaconHandle s addr uuid port = do
 -- sends udp multicast beacons
 beacon addr uuid port = do
     withSocketsDo $ do
-      bracket (getSocket addr) close (talk (addrAddress addr))
+      bracket (getSocket addr) close (talk (addrAddress addr) (zreBeacon uuid port))
 
   where
     getSocket addr = do
@@ -262,6 +262,7 @@ beacon addr uuid port = do
       mapM_ (\x -> setSocketOption s x 1) [Broadcast, ReuseAddr, ReusePort]
       bind s (addrAddress addr)
       return s
-    talk addr s = forever $ do
-      sendTo s (zreBeacon uuid port) addr
+    talk addr msg s =
+      forever $ do
+      sendTo s msg addr
       threadDelay zreBeaconMs
