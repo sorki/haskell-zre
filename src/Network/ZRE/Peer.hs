@@ -109,12 +109,14 @@ pinger s peer = forever $ do
   if diffUTCTime now peerLastHeard > deadPeriod
     then destroyPeer s peerUUID
     else do
-      if diffUTCTime now peerLastHeard > quietPeriod
-        then atomically $ writeTBQueue peerQueue $ Ping
-        else return ()
-
-  -- FIXME: less retarded scheduling
-  threadDelay 100000
+      let tdiff = diffUTCTime now peerLastHeard
+      if tdiff > quietPeriod
+        then do
+          atomically $ writeTBQueue peerQueue $ Ping
+          threadDelay quietPingRate
+        else do
+          threadDelay $ toDelay (quietPeriod - tdiff)
+  where toDelay = round . sec
 
 lookupPeer s uuid = do
   st <- readTVar s

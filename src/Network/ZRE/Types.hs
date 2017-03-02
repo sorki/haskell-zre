@@ -34,8 +34,8 @@ msec = (*1000)
 -- send beacon every 1 second
 --zreBeaconMs = 1000000
 
--- send beacon every 100 mseconds
-zreBeaconMs = 100000 :: Int
+-- send beacon every 0.9 seconds
+zreBeaconMs = 900000 :: Int
 
 -- send hugz after x mseconds
 -- agressive
@@ -45,6 +45,8 @@ zreBeaconMs = 100000 :: Int
 -- lazy
 quietPeriod = (sec 1) / 1000000.0 :: NominalDiffTime
 deadPeriod = (sec 5)  / 1000000.0 :: NominalDiffTime
+
+quietPingRate = round (sec 1) :: Int
 
 -- send beacon every 1 ms (much aggressive, will kill networkz)
 --zreBeaconMs = 1000 :: Int
