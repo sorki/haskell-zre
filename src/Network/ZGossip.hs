@@ -69,14 +69,12 @@ zsgHandle s _ _ = return []
 cvtPub (k, (v, ttl)) = Publish k v ttl
 
 zgossipClient uuid endpoint ourEndpoint handler = do
-  -- TODO: change to 100 and 90 for release
-  --let pubcmd =
   gossipQ <- atomically $ newTBQueue 10
-  -- TODO: publish e.g. every 9 secs
-  atomically $ mapM_ (writeTBQueue gossipQ) [Hello] -- , pubcmd]
+  atomically $ mapM_ (writeTBQueue gossipQ) [Hello]
   pa <- async $ forever $ do
-    atomically $ writeTBQueue gossipQ $ Publish uuid (pEndpoint ourEndpoint) 10 -- pubcmd
-    threadDelay $ 1000000*9
+    atomically $ writeTBQueue gossipQ $ Publish uuid (pEndpoint ourEndpoint) 600
+    -- publish every 50s
+    threadDelay $ 1000000*50
 
   link pa
   zgossipDealer endpoint uuid gossipQ handler
