@@ -17,10 +17,6 @@ module Data.ZGossip (
   ) where
 
 import Prelude hiding (putStrLn, take)
-import Control.Exception
-import Control.Monad
-import Control.Monad.IO.Class
-import Control.Applicative
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy as BL
 
@@ -29,17 +25,14 @@ import GHC.Word
 import Data.Binary.Strict.Get
 import Data.Binary.Put
 
-import qualified Data.Map as M
-import Data.Maybe
-import Data.Time.Clock
-
-import System.ZMQ4.Endpoint
 import Data.ZMQParse
 
 import Network.ZRE.Utils (bshow)
 
-zgsVer = 1 :: Int
-zgsSig = 0xAAA0 :: Word16
+zgsVer :: Int
+zgsVer = 1
+zgsSig :: Word16
+zgsSig = 0xAAA0
 
 type Peer = B.ByteString
 type Key = B.ByteString
@@ -59,14 +52,17 @@ data ZGSCmd =
   | Invalid
   deriving (Show, Eq, Ord)
 
+cmdCode :: ZGSCmd -> Word8
 cmdCode Hello           = 0x01
 cmdCode (Publish _ _ _) = 0x02
 cmdCode Ping            = 0x03
 cmdCode PingOk          = 0x04
 cmdCode Invalid         = 0x05
 
+newZGS :: ZGSCmd -> ZGSMsg
 newZGS cmd = ZGSMsg Nothing cmd
 
+encodeZGS :: ZGSMsg -> B.ByteString
 encodeZGS ZGSMsg{..} = msg
   where
     msg = BL.toStrict $ runPut $ do
@@ -75,26 +71,29 @@ encodeZGS ZGSMsg{..} = msg
       putInt8 $ fromIntegral zgsVer
       encodeCmd zgsCmd
 
+encodeCmd :: ZGSCmd -> PutM ()
 encodeCmd (Publish k v ttl) = do
   putByteStringLen k
   putLongByteStringLen v
   putInt32be $ fromIntegral ttl
 encodeCmd _ = return ()
 
+parsePublish :: Get ZGSCmd
 parsePublish = Publish
   <$> parseString
   <*> parseLongString
   <*> getInt32
 
+parseCmd :: B.ByteString -> Get ZGSMsg
 parseCmd from = do
-    cmd <- getInt8
+    cmd <- (getInt8 :: Get Int)
     ver <- getInt8
 
     if ver /= zgsVer
       then fail "Protocol version mismatch"
       else do
 
-        cmd <- case cmd of
+        zcmd <- case cmd of
           0x01 -> pure Hello
           0x02 -> parsePublish
           0x03 -> pure Ping
@@ -102,11 +101,13 @@ parseCmd from = do
           0x05 -> pure Invalid
           _    -> fail "Unknown command"
 
-        return $ ZGSMsg (Just from) cmd
+        return $ ZGSMsg (Just from) zcmd
 
+parseZGS :: [B.ByteString] -> (Either String ZGSMsg, B.ByteString)
 parseZGS [from, msg] = parseZgs from msg
 parseZGS x = (Left "empty message", bshow x)
 
+parseZgs :: B.ByteString -> B.ByteString -> (Either String ZGSMsg, B.ByteString)
 parseZgs from msg = flip runGet msg $ do
   sig <- getWord16be
   if sig /= zgsSig

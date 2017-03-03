@@ -1,5 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
-module System.ZMQ4.Endpoint where
+module System.ZMQ4.Endpoint (
+    parseAttoEndpoint
+  , pTransport
+  , pEndpoint
+  , newEndpoint
+  , newEndpointPort
+  , newEndpointAddrInfo
+  , newEndpointPortAddrInfo
+  , newTCPEndpoint
+  , newTCPEndpointAddrInfo
+  , Port
+  , Address
+  , Transport(..)
+  , Endpoint(..)) where
 
 import Control.Applicative
 import Data.Attoparsec.ByteString.Char8 as A
@@ -17,20 +30,35 @@ data Transport = TCP | IPC | InProc | PGM | EPGM
 data Endpoint = Endpoint Transport Address (Maybe Port)
   deriving (Show, Eq, Ord)
 
+pTransport :: Show a => a -> B.ByteString
 pTransport x = B.pack $ map toLower $ show x
+
+pEndpoint :: Endpoint -> B.ByteString
 pEndpoint (Endpoint t a Nothing) = B.concat [pTransport t, "://" , a]
 pEndpoint (Endpoint t a (Just p)) = B.concat [pTransport t, "://" , a, ":", B.pack $ show p]
 
+newEndpoint :: Transport -> Address -> Endpoint
 newEndpoint transport addr = newEndpointPort' transport addr Nothing
+
+newEndpointAddrInfo :: Transport -> AddrInfo -> Endpoint
 newEndpointAddrInfo transport addr = newEndpointPortAddrInfo' transport addr Nothing
 
+newEndpointPort' :: Transport -> Address -> Maybe Port -> Endpoint
 newEndpointPort' transport addr port = Endpoint transport addr port
+
+newEndpointPortAddrInfo' :: Transport -> AddrInfo -> Maybe Port -> Endpoint
 newEndpointPortAddrInfo' transport addr port = newEndpointPort' transport (showSockAddrBS $ addrAddress addr) port
 
+newEndpointPort :: Transport -> Address -> Port -> Endpoint
 newEndpointPort transport addr port = newEndpointPort' transport addr (Just port)
+
+newEndpointPortAddrInfo :: Transport -> AddrInfo -> Port -> Endpoint
 newEndpointPortAddrInfo transport addr port = newEndpointPortAddrInfo' transport addr (Just port)
 
+newTCPEndpoint :: Address -> Port -> Endpoint
 newTCPEndpoint addr port = newEndpointPort TCP addr port
+
+newTCPEndpointAddrInfo :: AddrInfo -> Port -> Endpoint
 newTCPEndpointAddrInfo addr port = newEndpointPortAddrInfo TCP addr port
 
 parseTransport :: Parser Transport
@@ -59,4 +87,5 @@ parsePort = do
 parseEndpoint :: Parser Endpoint
 parseEndpoint = Endpoint <$> parseTransport <*> parseAddress <*> optional parsePort
 
+parseAttoEndpoint :: B.ByteString -> Either String Endpoint
 parseAttoEndpoint = A.parseOnly parseEndpoint

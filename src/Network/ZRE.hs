@@ -1,24 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-module Network.ZRE where
+module Network.ZRE (runZre) where
 
 import Prelude hiding (putStrLn, take)
 import Control.Exception
 import Control.Monad hiding (join)
 import Control.Monad.IO.Class
-import Control.Applicative
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
-import Control.Concurrent.STM.TBQueue
-import Network (listenOn, withSocketsDo, accept, PortID(..), Socket)
+import Network (withSocketsDo)
 import Network.BSD (getHostName)
 import Network.Socket hiding (accept, send, sendTo, recv, recvFrom)
 import Network.Socket.ByteString
 import Network.Multicast
 import Network.SockAddr
 import Network.Info
-import qualified System.ZMQ4.Monadic as ZMQ
 import qualified Data.ByteString.Char8 as B
 
 
@@ -27,11 +24,8 @@ import Data.UUID
 import Data.UUID.V1
 import Data.Maybe
 import Data.Time.Clock
-import Data.Time.Clock.POSIX
 
 import qualified Data.Map as M
-
-import Data.Binary.Strict.Get as G
 
 import Data.ZRE
 import qualified Data.ZGossip as ZGS
@@ -42,20 +36,18 @@ import Network.ZRE.Types
 import System.ZMQ4.Endpoint
 
 import Network.ZGossip
-import Network.ZGossip.ZMQ
 
-import GHC.Conc
-
---dbg x = return ()
-dbg x = x
+dbg x = return ()
+--dbg x = x
 
 gossipPort = 31337
 
+--runZre :: (TBQueue Event -> TBQueue API -> IO a) -> IO ()
 runZre app = do
     dr <- getDefRoute
     case dr of
       Nothing -> exitFail "Unable to get default route"
-      Just (route, iface) -> do
+      Just (_route, iface) -> do
 
         ifaceInfo <- getIface iface
         case ifaceInfo of
@@ -75,7 +67,7 @@ runZre app = do
             let gossipServerEndpoint = newTCPEndpoint "*" gossipPort
             let gossipClientEndpoint = newTCPEndpoint "172.17.1.63" gossipPort
 
-            name <- fmap B.pack getHostName
+            zreName <- fmap B.pack getHostName
 
             inQ <- atomically $ newTBQueue 10
             outQ <- atomically $ newTBQueue 10
@@ -83,31 +75,33 @@ runZre app = do
             gossipQ <- atomically $ newTBQueue 10
 
             atomically $ mapM_ (writeTBQueue gossipQ) [ZGS.Hello, ZGS.Publish "test" "127.0.0.1" 1337]
-            s <- newZREState name zreEndpoint u inQ outQ
+            s <- newZREState zreName zreEndpoint u inQ outQ
 
-            runConcurrently $ Concurrently (beaconRecv s) *>
+            void $ runConcurrently $ Concurrently (beaconRecv s) *>
                               Concurrently (beacon mCastAddr uuid zrePort) *>
                               --Concurrently (zgossipServer gossipServerEndpoint) *> -- zgsHandle) *>
                               Concurrently (zgossipClient uuid gossipClientEndpoint zreEndpoint (zgossipZRE outQ)) *>
-                              Concurrently (zreRouter zreEndpoint (inbox s inQ)) *>
+                              Concurrently (zreRouter zreEndpoint (inbox s)) *>
                               Concurrently (api s) *>
-                              Concurrently (app inQ outQ)
+                              Concurrently (runZ app inQ outQ)
             return ()
 
+api :: TVar ZREState -> IO ()
 api s = forever $ do
   a <- atomically $ readTVar s >>= readTBQueue . zreOut
   handleApi s a
 
+handleApi :: TVar ZREState -> API -> IO ()
 handleApi s action = do
   case action of
     DoJoin group -> atomically $ do
-      incGroupSeq s
+      incGroupSeq
       modifyTVar s $ \x -> x { zreGroups = Set.insert group (zreGroups x) }
       st <- readTVar s
       msgAll s $ Join group (zreGroupSeq st)
 
     DoLeave group -> atomically $ do
-      incGroupSeq s
+      incGroupSeq
       modifyTVar s $ \x -> x { zreGroups = Set.delete group (zreGroups x) }
       st <- readTVar s
       msgAll s $ Leave group (zreGroupSeq st)
@@ -131,11 +125,12 @@ handleApi s action = do
           void $ makePeer s uuid $ newPeerFromEndpoint endpoint
       --return ()
   where
-    incGroupSeq s = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }
+    incGroupSeq = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }
 
 -- handles incoming ZRE messages
 -- creates peers, updates state
-inbox s inQ msg@ZREMsg{..} = do
+inbox :: TVar ZREState -> ZREMsg -> IO ()
+inbox s msg@ZREMsg{..} = do
   let uuid = fromJust msgFrom
 
   dbg $ B.putStrLn "msg"
@@ -149,7 +144,7 @@ inbox s inQ msg@ZREMsg{..} = do
       case msgCmd of
         -- if the peer is not known but a message is HELLO we create a new
         -- peer, for other messages we don't know the endpoint to connect to
-        h@(Hello endpoint groups groupSeq name headers) -> do
+        h@(Hello _endpoint _groups _groupSeq _name _headers) -> do
           liftIO $ dbg $ B.putStrLn $ B.concat ["New peer from hello"]
           peer <- makePeer s uuid $ newPeerFromHello h
           atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
@@ -168,17 +163,18 @@ inbox s inQ msg@ZREMsg{..} = do
           handleCmd s msg peer
         _ -> do
           dbg $ B.putStrLn "sequence mismatch, recreating peer"
-          recreatePeer s (peerUUID p) msgCmd
+          recreatePeer (peerUUID p) msgCmd
 
   dbg $ B.putStrLn "state post-msg"
   dbg $ printAll s
   where
-    recreatePeer s uuid h@(Hello _ _ _ _ _) = do
+    recreatePeer uuid h@(Hello _ _ _ _ _) = do
           destroyPeer s uuid
           peer <- makePeer s uuid $ newPeerFromHello h
           atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
-    recreatePeer s uuid _ = destroyPeer s uuid
+    recreatePeer uuid _ = destroyPeer s uuid
 
+handleCmd :: TVar ZREState -> ZREMsg -> TVar Peer -> IO ()
 handleCmd s msg@ZREMsg{..}  peer = do
       case msgCmd of
         (Whisper content) -> do
@@ -199,34 +195,38 @@ handleCmd s msg@ZREMsg{..}  peer = do
 
         Ping -> atomically $ msgPeer peer PingOk
         PingOk -> return ()
-        h@(Hello endpoint groups groupSeq name headers) -> do
+        (Hello _endpoint groups groupSeq name headers) -> do
           -- if this peer was already registered
           -- (e.g. from beacon) update appropriate data
           atomically $ do
             joinGroups s peer groups groupSeq
             updatePeer peer $ \x -> x {
                          peerName = Just name
+                       , peerHeaders = headers
                        }
             p <- readTVar peer
             emit s $ Ready p
           return ()
 
+beaconRecv :: TVar ZREState -> IO b
 beaconRecv s = do
     sock <- multicastReceiver mCastIP (fromIntegral mCastPort)
     forever $ do
         (msg, addr) <- recvFrom sock 22
         case parseBeacon msg of
-          (Left err, remainder) -> print err
-          (Right (lead, ver, uuid, port), _) -> do
+          (Left err, _remainder) -> print err
+          (Right (_lead, _ver, uuid, port), _) -> do
             case addr of
-              x@(SockAddrInet _hisport host) -> do
+              x@(SockAddrInet _hisport _host) -> do
                 beaconHandle s (showSockAddrBS x) uuid (fromIntegral port)
-              x@(SockAddrInet6 _hisport _ h _) -> do
+              x@(SockAddrInet6 _hisport _ _host _) -> do
                 beaconHandle s (showSockAddrBS x) uuid (fromIntegral port)
+              _ -> return ()
 
 -- handle messages received on beacon
 -- creates new peers
 -- updates peers last heard
+beaconHandle :: TVar ZREState -> B.ByteString -> UUID -> Int -> IO ()
 beaconHandle s addr uuid port = do
     st <- atomically $ readTVar s
 
@@ -252,10 +252,10 @@ beaconHandle s addr uuid port = do
 --      return s
 
 -- sends udp multicast beacons
-beacon addr uuid port = do
+beacon :: AddrInfo -> B.ByteString -> Port -> IO a
+beacon addrInfo uuid port = do
     withSocketsDo $ do
-      bracket (getSocket addr) close (talk (addrAddress addr) (zreBeacon uuid port))
-
+      bracket (getSocket addrInfo) close (talk (addrAddress addrInfo) (zreBeacon uuid port))
   where
     getSocket addr = do
       s <- socket (addrFamily addr) Datagram defaultProtocol
@@ -264,5 +264,5 @@ beacon addr uuid port = do
       return s
     talk addr msg s =
       forever $ do
-      sendTo s msg addr
+      void $ sendTo s msg addr
       threadDelay zreBeaconMs

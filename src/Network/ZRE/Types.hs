@@ -5,21 +5,16 @@
 {-# LANGUAGE TypeFamilies #-}
 module Network.ZRE.Types where
 
-import Control.Monad.RWS hiding (state)
 import Control.Monad.Reader
-import Control.Monad.Identity
 import Control.Monad.Base
 import Control.Monad.Trans.Control
 import Control.Concurrent.Async
 import Control.Concurrent.STM
-import Control.Concurrent.STM.TBQueue
 import Data.UUID
 import qualified Data.Map as M
-import qualified Data.Set as Set
+import qualified Data.Set as S
 import qualified Data.ByteString.Char8 as B
 import Data.Time.Clock
-
-import System.IO (Handle)
 
 import Data.ZRE
 import System.ZMQ4.Endpoint
@@ -99,6 +94,7 @@ data Peer = Peer {
   , peerGroups    :: Groups
   , peerGroupSeq  :: GroupSeq
   , peerName      :: Maybe Name
+  , peerHeaders   :: Headers
   , peerAsync     :: Maybe (Async ())
   , peerAsyncPing :: Maybe (Async ())
   , peerQueue     :: TBQueue ZRECmd
@@ -117,16 +113,14 @@ newtype ZRE a = Z {
 }
   deriving (Functor, Applicative, Monad, MonadIO,
     MonadBase IO,
---    MonadBaseControl IO,
     MonadReader (EventQueue, APIQueue))
-
---type instance StM ZRE a = a
 
 instance MonadBaseControl IO ZRE where
   type StM ZRE a = a
   liftBaseWith f = Z $ liftBaseWith $ \q -> f (q . runZ')
   restoreM = Z . restoreM
 
+runZ :: ZRE a -> EventQueue -> APIQueue -> IO a
 runZ app events api = runReaderT (runZ' app) (events, api)
 
 readZ :: ZRE (Event)
@@ -135,36 +129,63 @@ readZ = do
   v <- liftIO $ atomically $ readTBQueue e
   return v
 
+unReadZ :: Event -> ZRE ()
+unReadZ x = do
+  (e, _) <- ask
+  void $ liftIO $ atomically $ unGetTBQueue e x
+
 writeZ :: API -> ZRE ()
 writeZ x = do
   (_, a) <- ask
   liftIO $ atomically $ writeTBQueue a x
 
+readZreQueue :: TBQueue Event -> IO Event
 readZreQueue inQ = atomically $ readTBQueue inQ
+
+writeZreQueue :: TBQueue API -> API -> IO ()
 writeZreQueue outQ x = atomically $ writeTBQueue outQ x
+
+--concurrentZre :: IO a1 -> IO a -> IO a
 concurrentZre recv act = runConcurrently $ Concurrently (recv) *> Concurrently (act)
 
+zjoin :: Group -> ZRE ()
 zjoin = writeZ . DoJoin
+
+zleave :: Group -> ZRE ()
 zleave = writeZ . DoLeave
+
+zshout :: Group -> B.ByteString -> ZRE ()
 zshout group msg = writeZ $ DoShout group msg
+
+zshout' :: Group -> [B.ByteString] -> ZRE ()
 zshout' group msgs = writeZ $ DoShoutMulti group msgs
+
+zwhisper :: UUID -> B.ByteString -> ZRE ()
 zwhisper uuid msg = writeZ $ DoWhisper uuid msg
 
+-- old
 join = DoJoin
 leave = DoLeave
 shout = DoShout
 shout' = DoShoutMulti
 whisper = DoWhisper
 
+maybeM :: Monad m => m b -> (a -> m b) -> m (Maybe a) -> m b
 maybeM err f value = value >>= maybe err f
 
+newZREState :: Name
+            -> Endpoint
+            -> UUID
+            -> EventQueue
+            -> APIQueue
+            -> IO (TVar ZREState)
 newZREState name endpoint u inQ outQ = atomically $ newTVar $
   ZREState {
     zreUUID = u
     , zrePeers = M.empty
     , zrePeerGroups = M.empty
     , zreEndpoint = endpoint
-    , zreGroups = Set.empty
+    , zreGroups = S.empty
     , zreGroupSeq = 0
     , zreName = name
     , zreHeaders = M.empty

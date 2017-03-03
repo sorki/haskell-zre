@@ -1,6 +1,8 @@
-module Network.ZGossip.Types where
+module Network.ZGossip.Types (
+    ZGossipState(..)
+  , emptyGossipState
+  , cvtPub) where
 
-import System.IO (Handle)
 import qualified Data.Map as M
 import qualified Data.Set as S
 
@@ -11,4 +13,8 @@ data ZGossipState = ZGossipState {
   , gossipPairs   :: M.Map Key (Value, TTL)
 } deriving (Show)
 
+emptyGossipState :: ZGossipState
 emptyGossipState = ZGossipState S.empty M.empty
+
+cvtPub :: (Key, (Value, TTL)) -> ZGSCmd
+cvtPub (k, (v, ttl)) = Publish k v ttl

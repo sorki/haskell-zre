@@ -2,25 +2,27 @@
 module Network.ZRE.ZMQ (zreRouter, zreDealer) where
 
 import Control.Monad
-import Control.Concurrent.Async
 import Control.Concurrent.STM
-import Control.Concurrent.STM.TBQueue
+import Control.Monad.IO.Class
 import qualified System.ZMQ4.Monadic as ZMQ
-import System.ZMQ4.Monadic as ZMQ
 import qualified Data.ByteString.Char8 as B
 import qualified Data.List.NonEmpty as NE
 import Data.Time.Clock.POSIX
 
 import Data.ZRE
-import Network.ZRE.Utils
 import System.ZMQ4.Endpoint
 
+zreDealer :: Control.Monad.IO.Class.MonadIO m
+          => Endpoint
+          -> B.ByteString
+          -> TBQueue ZRECmd
+          -> m a
 zreDealer endpoint ourUUID peerQ = ZMQ.runZMQ $ do
   d <- ZMQ.socket ZMQ.Dealer
-  ZMQ.setLinger (ZMQ.restrict 1) d
+  ZMQ.setLinger (ZMQ.restrict (1 :: Int)) d
   -- The sender MAY set a high-water mark (HWM) of, for example, 100 messages per second (if the timeout period is 30 second, this means a HWM of 3,000 messages).
-  ZMQ.setSendHighWM (ZMQ.restrict $ 30 * 100) d
-  ZMQ.setSendTimeout (ZMQ.restrict 0) d
+  ZMQ.setSendHighWM (ZMQ.restrict $ (30 * 100 :: Int)) d
+  ZMQ.setSendTimeout (ZMQ.restrict (0 :: Int)) d
   -- prepend '1' in front of 16bit UUID, ZMQ.restrict would do that for us but protocol requires it
   ZMQ.setIdentity (ZMQ.restrict $ B.cons '1' ourUUID) d
   ZMQ.connect d $ B.unpack $ pEndpoint endpoint
@@ -31,6 +33,10 @@ zreDealer endpoint ourUUID peerQ = ZMQ.runZMQ $ do
            ZMQ.sendMulti d $ (NE.fromList $ encodeZRE $ newZRE x cmd :: NE.NonEmpty B.ByteString)
            loop d (x+1)
 
+zreRouter :: Control.Monad.IO.Class.MonadIO m
+          => Endpoint
+          -> (ZREMsg -> IO a1)
+          -> m a
 zreRouter endpoint handler = ZMQ.runZMQ $ do
   sock <- ZMQ.socket ZMQ.Router
   ZMQ.bind sock $ B.unpack $ pEndpoint endpoint
@@ -41,5 +47,5 @@ zreRouter endpoint handler = ZMQ.runZMQ $ do
         (Left err, _) -> liftIO $ print $ "Malformed message received: " ++ err
         (Right msg, _) -> do
           let updateTime = \x -> x { msgTime = Just now }
-          liftIO $ handler (updateTime msg)
+          void $ liftIO $ handler (updateTime msg)
           return ()

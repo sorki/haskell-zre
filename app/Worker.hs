@@ -7,7 +7,6 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Control
 import Control.Concurrent
---import Control.Concurrent.Async
 import Control.Concurrent.Async.Lifted
 
 import qualified Data.ByteString.Char8 as B
@@ -26,14 +25,16 @@ main = runZre app
 -- v1 non-concurrent
 
 --app events api = runZ worker events api
-app events api = runZ test events api
+--app events api = runZ test events api
 
 --test = control $ \run -> print "kokot" -- dump -- `concurrently` worker
 --test = dump `concurrently` worker
 --test = dealer
-test = worker
+app = worker
 
 raw = forever $ readZ >>= liftIO .print
+
+-- withGroup
 
 worker = forever $ do
   e <- readZ
