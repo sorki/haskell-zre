@@ -1,6 +1,6 @@
 name:                zre
 version:             0.1.0.0
-synopsis:            ZYRE protocol implementation
+synopsis:            ZRE protocol implementation
 description:         Please see README.md
 --homepage:            https://
 license:             BSD3
