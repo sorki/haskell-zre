@@ -55,7 +55,7 @@ runZre app = do
           (Just NetworkInterface{..}) -> do
 
             u <- maybeM (exitFail "Unable to get UUID") return nextUUID
-            zrePort <- randPort
+            zrePort <- randPort $ bshow ipv4
             let uuid = uuidByteString u
             (mCastAddr:_) <- getAddrInfo Nothing (Just mCastIP) (Just $ show mCastPort)
 
@@ -242,14 +242,6 @@ beaconHandle s addr uuid port = do
             void $ makePeer s uuid $ newPeerFromBeacon addr port
             return ()
 
---randomPort addr = do
---    withSocketsDo $ do
---      bracket (getSocket addr) close (pure ())
---  where
---    getSocket addr = do
---      s <- socket (addrFamily addr) Datagram defaultProtocol
---      bind s (addrAddress addr)
---      return s
 
 -- sends udp multicast beacons
 beacon :: AddrInfo -> B.ByteString -> Port -> IO a
