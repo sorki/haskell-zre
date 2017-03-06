@@ -31,7 +31,6 @@ zgossipDealer endpoint ourUUID peerQ handler = ZMQ.runZMQ $ do
   -- is the overall tuple set size
   ZMQ.setSendHighWM (ZMQ.restrict (0 :: Int)) d
   ZMQ.setSendTimeout (ZMQ.restrict (0 :: Int)) d
-  -- prepend '1' in front of 16bit UUID, ZMQ.restrict would do that for us but protocol requires it
   ZMQ.setIdentity (ZMQ.restrict $ ourUUID) d
   ZMQ.connect d $ B.unpack $ pEndpoint endpoint
   let spam = forever $ do
@@ -46,7 +45,6 @@ zgossipDealer endpoint ourUUID peerQ handler = ZMQ.runZMQ $ do
              liftIO $ print $ "Malformed gossip message received: " ++ err
              liftIO $ print input
            (Right msg@ZGSMsg{..}, _) -> do
-             --liftIO $ print "DRECV" >> print msg
              liftIO $ handler msg
 
   sa <- ZMQ.async spam
@@ -63,13 +61,12 @@ zgossipRouter endpoint handler = ZMQ.runZMQ $ do
   sock <- ZMQ.socket ZMQ.Router
   ZMQ.bind sock $ B.unpack $ pEndpoint endpoint
 
-  --ZMQ.setIdentity (ZMQ.restrict $ ourUUID) d
   forever $ do
      input <- ZMQ.receiveMulti sock
      case parseZGS input of
         (Left err, _) -> liftIO $ print $ "Malformed gossip message received: " ++ err
         (Right msg@ZGSMsg{..}, _) -> do
-            liftIO $ print msg
+            --liftIO $ print msg
             res <- liftIO $ handler (fromJust zgsFrom) zgsCmd
             flip mapM_ res $ \(to, cmd) -> do
               --liftIO $ print "FWDing" >> print (to, cmd)

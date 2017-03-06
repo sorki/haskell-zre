@@ -43,9 +43,6 @@ import System.ZMQ4.Endpoint
 
 import Network.ZGossip
 
-dbg x = return ()
---dbg x = x
-
 gossipPort = 31337
 
 runZre :: ZRE a -> IO ()
@@ -80,12 +77,10 @@ runZre app = do
 
             gossipQ <- atomically $ newTBQueue 10
 
-            atomically $ mapM_ (writeTBQueue gossipQ) [ZGS.Hello, ZGS.Publish "test" "127.0.0.1" 1337]
             s <- newZREState zreName zreEndpoint u inQ outQ
 
             void $ runConcurrently $ Concurrently (beaconRecv s) *>
                               Concurrently (beacon mCastAddr uuid zrePort) *>
-                              --Concurrently (zgossipServer gossipServerEndpoint) *> -- zgsHandle) *>
                               Concurrently (zgossipClient uuid gossipClientEndpoint zreEndpoint (zgossipZRE outQ)) *>
                               Concurrently (zreRouter zreEndpoint (inbox s)) *>
                               Concurrently (api s) *>
@@ -121,7 +116,6 @@ handleApi s action = do
       case mp of
         Just _ -> return ()
         Nothing -> do
-          dbg $ B.putStrLn $ B.concat ["New peer from discover ", B.pack $ show uuid, " (", pEndpoint endpoint, ")"]
           void $ makePeer s uuid $ newPeerFromEndpoint endpoint
   where
     incGroupSeq = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }

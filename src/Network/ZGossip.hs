@@ -21,6 +21,7 @@ import qualified Data.ByteString.Lazy as BL
 
 import Data.ZGossip
 import Network.ZRE.Types (API(DoDiscover))
+import Network.ZRE.Utils (bshow)
 
 import Network.ZGossip.ZMQ
 import Network.ZGossip.Types
@@ -59,19 +60,27 @@ serverHandle :: TVar ZGossipState -> Peer -> ZGSCmd -> IO [(Peer, ZGSCmd)]
 serverHandle s from Hello = do
   atomically $ modifyTVar s $ \x -> x { gossipPeers = S.insert from (gossipPeers x) }
   st <- atomically $ readTVar s
-  print st
+  dbg ["Hello from", tryUUID from]
   -- send all the k,v pairs to this client
   return [(from, cvtPub pub) | pub <- M.toList $ gossipPairs st ]
 serverHandle s from pub@(Publish k v ttl) = do
   atomically $ modifyTVar s $ \x -> x { gossipPairs = M.insert k (v, ttl) (gossipPairs x) }
   st <- atomically $ readTVar s
-  print st
+  dbg ["Publish from", tryUUID from, tryUUID k, "=", v, "( ttl", bshow ttl, ")"]
+
   -- republish this to all other clients
   return [(to, pub) | to <- M.keys $ gossipPairs st, to /= from ]
---TODO: ping pongs
-serverHandle _ _ Ping = return []
+serverHandle _ from Ping = do
+  dbg ["Ping from", tryUUID from]
+  return [(from, PingOk)]
 serverHandle _ _ PingOk = return []
 serverHandle _ _ Invalid = return []
+
+tryUUID :: B.ByteString -> B.ByteString
+tryUUID x = maybe x toASCIIBytes (fromByteString $ BL.fromStrict x)
+
+dbg :: [B.ByteString] -> IO ()
+dbg = B.putStrLn . (B.intercalate " ")
 
 -- send DoDiscover ZRE API messages on new Publish message
 zgossipZRE :: TBQueue API -> ZGSMsg -> IO ()
