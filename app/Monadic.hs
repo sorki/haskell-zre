@@ -1,6 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE FlexibleContexts #-}
 module Main where
 
 import Control.Applicative
@@ -31,8 +29,6 @@ ohaivololo = do
   forever $ do
     zshout group "vololo"
     liftIO $ threadDelay 1000000
-
-secdelay = liftIO $ threadDelay 1000000
 
 dump :: ZRE ()
 dump = forever $ do
