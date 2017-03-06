@@ -143,15 +143,6 @@ writeZ x = do
   (_, a) <- ask
   liftIO $ atomically $ writeTBQueue a x
 
-readZreQueue :: TBQueue Event -> IO Event
-readZreQueue inQ = atomically $ readTBQueue inQ
-
-writeZreQueue :: TBQueue API -> API -> IO ()
-writeZreQueue outQ x = atomically $ writeTBQueue outQ x
-
---concurrentZre :: IO a1 -> IO a -> IO a
-concurrentZre recv act = runConcurrently $ Concurrently (recv) *> Concurrently (act)
-
 zjoin :: Group -> ZRE ()
 zjoin = writeZ . DoJoin
 
@@ -172,13 +163,6 @@ zdebug = writeZ $ DoDebug True
 
 znodebug :: ZRE ()
 znodebug = writeZ $ DoDebug False
-
--- old
-join = DoJoin
-leave = DoLeave
-shout = DoShout
-shout' = DoShoutMulti
-whisper = DoWhisper
 
 maybeM :: Monad m => m b -> (a -> m b) -> m (Maybe a) -> m b
 maybeM err f value = value >>= maybe err f

@@ -41,12 +41,6 @@ dealer = forever $ do
       zjoin "gimme"
       zwhisper uuid "gimme"
     x -> liftIO $ print x
---
-----readZ = do
-----  (e,a) <- ask
-----  return
-----
---
 
 group = "chat"
 
