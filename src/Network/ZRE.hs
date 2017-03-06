@@ -14,6 +14,8 @@ module Network.ZRE (
   , zshout
   , zshout'
   , zwhisper
+  , zdebug
+  , znodebug
   , pEndpoint
   , toASCIIBytes) where
 
@@ -115,6 +117,8 @@ handleApi s action = do
         Just _ -> return ()
         Nothing -> do
           void $ makePeer s uuid $ newPeerFromEndpoint endpoint
+
+    DoDebug bool -> atomically $ modifyTVar s $ \x -> x { zreDebug = bool }
   where
     incGroupSeq = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }
 

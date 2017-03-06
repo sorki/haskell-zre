@@ -84,4 +84,6 @@ emit s x = do
 emitdbg :: TVar ZREState -> B.ByteString -> STM ()
 emitdbg s x = do
   st <- readTVar s
-  writeTBQueue (zreIn st) $ Debug x
+  case zreDebug st of
+    True -> writeTBQueue (zreIn st) $ Debug x
+    _ -> return ()

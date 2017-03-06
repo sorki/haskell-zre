@@ -58,7 +58,6 @@ data Event =
   | Shout UUID Group Content UTCTime
   | Whisper UUID Content UTCTime
   | Debug B.ByteString
-  -- TODO: rewrite dbg to emit $ Debug msg
   deriving (Show)
 
 data API =
@@ -68,6 +67,7 @@ data API =
   | DoShoutMulti Group [B.ByteString]
   | DoWhisper UUID B.ByteString
   | DoDiscover UUID Endpoint
+  | DoDebug Bool
   deriving (Show)
 
 type Peers = M.Map UUID (TVar Peer)
@@ -86,6 +86,7 @@ data ZREState = ZREState {
   , zreGroupSeq   :: GroupSeq
   , zreName       :: Name
   , zreHeaders    :: Headers
+  , zreDebug      :: Bool
   , zreIn         :: EventQueue
   , zreOut        :: APIQueue
   }
@@ -166,6 +167,12 @@ zshout' group msgs = writeZ $ DoShoutMulti group msgs
 zwhisper :: UUID -> B.ByteString -> ZRE ()
 zwhisper uuid msg = writeZ $ DoWhisper uuid msg
 
+zdebug :: ZRE ()
+zdebug = writeZ $ DoDebug True
+
+znodebug :: ZRE ()
+znodebug = writeZ $ DoDebug False
+
 -- old
 join = DoJoin
 leave = DoLeave
@@ -192,5 +199,6 @@ newZREState name endpoint u inQ outQ = atomically $ newTVar $
     , zreGroupSeq = 0
     , zreName = name
     , zreHeaders = M.empty
+    , zreDebug = False
     , zreIn = inQ
     , zreOut = outQ }
