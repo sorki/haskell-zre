@@ -53,7 +53,7 @@ randPort :: B.ByteString -> IO Port
 randPort ip = loop (100 :: Int)
   where
     loop cnt = do
-      port <- randomRIO (41000, 41010)
+      port <- randomRIO (41000, 41100)
       (xAddr:_) <- getAddrInfo Nothing (Just $ B.unpack ip) (Just $ show port)
       esocket <- try $ getSocket xAddr
       case esocket :: Either IOException Socket of
