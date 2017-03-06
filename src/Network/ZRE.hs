@@ -8,6 +8,7 @@ module Network.ZRE (
   , API(..)
   , Event(..)
   , ZRE
+  , Z.Group
   , zjoin
   , zleave
   , zshout
