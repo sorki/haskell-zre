@@ -16,6 +16,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:       Network.ZRE
+                       , Network.ZRE.Beacon
                        , Network.ZRE.Parse
                        , Network.ZRE.Peer
                        , Network.ZRE.Utils
@@ -45,13 +46,11 @@ library
                      , process
                      , random
                      , stm
---                     , streaming-commons
                      , time
                      , uuid
                      , zeromq4-haskell
   default-language:    Haskell2010
-  ghc-options:         -Wunused-imports -Wall
-  -- -Wall
+  ghc-options:         -Wall
 
 executable zre
   hs-source-dirs:      app

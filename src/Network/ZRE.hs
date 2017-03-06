@@ -3,32 +3,23 @@
 module Network.ZRE (runZre) where
 
 import Prelude hiding (putStrLn, take)
-import Control.Exception
 import Control.Monad hiding (join)
 import Control.Monad.IO.Class
-import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
-import Network (withSocketsDo)
 import Network.BSD (getHostName)
 import Network.Socket hiding (accept, send, sendTo, recv, recvFrom)
-import Network.Socket.ByteString
-import Network.Multicast
-import Network.SockAddr
 import Network.Info
-import qualified Data.ByteString.Char8 as B
 
-
-import qualified Data.Set as Set
-import Data.UUID
 import Data.UUID.V1
 import Data.Maybe
-import Data.Time.Clock
 
-import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.ByteString.Char8 as B
 
 import Data.ZRE
 import qualified Data.ZGossip as ZGS
+import Network.ZRE.Beacon
 import Network.ZRE.Utils
 import Network.ZRE.Peer
 import Network.ZRE.ZMQ
@@ -42,7 +33,7 @@ dbg x = return ()
 
 gossipPort = 31337
 
---runZre :: (TBQueue Event -> TBQueue API -> IO a) -> IO ()
+runZre :: ZRE a -> IO ()
 runZre app = do
     dr <- getDefRoute
     case dr of
@@ -96,13 +87,13 @@ handleApi s action = do
   case action of
     DoJoin group -> atomically $ do
       incGroupSeq
-      modifyTVar s $ \x -> x { zreGroups = Set.insert group (zreGroups x) }
+      modifyTVar s $ \x -> x { zreGroups = S.insert group (zreGroups x) }
       st <- readTVar s
       msgAll s $ Join group (zreGroupSeq st)
 
     DoLeave group -> atomically $ do
       incGroupSeq
-      modifyTVar s $ \x -> x { zreGroups = Set.delete group (zreGroups x) }
+      modifyTVar s $ \x -> x { zreGroups = S.delete group (zreGroups x) }
       st <- readTVar s
       msgAll s $ Leave group (zreGroupSeq st)
 
@@ -207,54 +198,3 @@ handleCmd s msg@ZREMsg{..}  peer = do
             p <- readTVar peer
             emit s $ Ready p
           return ()
-
-beaconRecv :: TVar ZREState -> IO b
-beaconRecv s = do
-    sock <- multicastReceiver mCastIP (fromIntegral mCastPort)
-    forever $ do
-        (msg, addr) <- recvFrom sock 22
-        case parseBeacon msg of
-          (Left err, _remainder) -> print err
-          (Right (_lead, _ver, uuid, port), _) -> do
-            case addr of
-              x@(SockAddrInet _hisport _host) -> do
-                beaconHandle s (showSockAddrBS x) uuid (fromIntegral port)
-              x@(SockAddrInet6 _hisport _ _host _) -> do
-                beaconHandle s (showSockAddrBS x) uuid (fromIntegral port)
-              _ -> return ()
-
--- handle messages received on beacon
--- creates new peers
--- updates peers last heard
-beaconHandle :: TVar ZREState -> B.ByteString -> UUID -> Int -> IO ()
-beaconHandle s addr uuid port = do
-    st <- atomically $ readTVar s
-
-    if uuid == zreUUID st
-      then return () -- our own message
-      else do
-        case M.lookup uuid $ zrePeers st of
-          (Just peer) -> do
-            now <- getCurrentTime
-            atomically $ updateLastHeard peer now
-          Nothing -> do
-            dbg $ B.putStrLn $ B.concat ["New peer from beacon ", B.pack $ show uuid, " (", addr, ":", B.pack $ show port , ")"]
-            void $ makePeer s uuid $ newPeerFromBeacon addr port
-            return ()
-
-
--- sends udp multicast beacons
-beacon :: AddrInfo -> B.ByteString -> Port -> IO a
-beacon addrInfo uuid port = do
-    withSocketsDo $ do
-      bracket (getSocket addrInfo) close (talk (addrAddress addrInfo) (zreBeacon uuid port))
-  where
-    getSocket addr = do
-      s <- socket (addrFamily addr) Datagram defaultProtocol
-      mapM_ (\x -> setSocketOption s x 1) [Broadcast, ReuseAddr, ReusePort]
-      bind s (addrAddress addr)
-      return s
-    talk addr msg s =
-      forever $ do
-      void $ sendTo s msg addr
-      threadDelay zreBeaconMs
