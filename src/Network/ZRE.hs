@@ -72,8 +72,8 @@ runZre app = do
 
             zreName <- fmap B.pack getHostName
 
-            inQ <- atomically $ newTBQueue 10
-            outQ <- atomically $ newTBQueue 10
+            inQ <- atomically $ newTBQueue 1000
+            outQ <- atomically $ newTBQueue 1000
 
             s <- newZREState zreName zreEndpoint u inQ outQ
 

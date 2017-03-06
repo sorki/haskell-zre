@@ -66,7 +66,7 @@ newPeer :: MonadIO m
         -> STM (TVar Peer, Maybe (m a), Maybe (IO b))
 newPeer s endpoint uuid groups groupSeq mname headers t = do
   st <- readTVar s
-  peerQ <- newTBQueue 10
+  peerQ <- newTBQueue 100
   writeTBQueue peerQ $ Hello (zreEndpoint st) (zreGroups st) (zreGroupSeq st) (zreName st) (zreHeaders st)
 
   let p = Peer {
