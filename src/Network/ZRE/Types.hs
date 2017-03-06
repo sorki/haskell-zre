@@ -16,7 +16,7 @@ import qualified Data.Set as S
 import qualified Data.ByteString.Char8 as B
 import Data.Time.Clock
 
-import Data.ZRE
+import Data.ZRE hiding (Shout, Whisper) -- (Name, Seq, Group, Groups, GroupSeq, Headers, Content, ZRECmd, ZREMsg)
 import System.ZMQ4.Endpoint
 
 mCastPort = 5670 :: Port
@@ -49,12 +49,15 @@ quietPingRate = round (sec 1) :: Int
 --deadPeriod = 6000  / 100000.0 :: NominalDiffTime
 
 data Event =
-    New Peer
-  | Ready Peer
-  | GroupJoin Peer Group
-  | GroupLeave Peer Group
-  | Quit Peer
+    New UUID (Maybe Name) Groups Headers Endpoint
+  | Ready UUID Name Groups Headers Endpoint
+  | GroupJoin UUID Group
+  | GroupLeave UUID Group
+  | Quit UUID (Maybe Name)
   | Message ZREMsg
+  | Shout UUID Group Content UTCTime
+  | Whisper UUID Content UTCTime
+  | Debug B.ByteString
   -- TODO: rewrite dbg to emit $ Debug msg
   deriving (Show)
 

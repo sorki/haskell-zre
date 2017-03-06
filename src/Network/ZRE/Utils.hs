@@ -6,7 +6,8 @@ module Network.ZRE.Utils (
   , getDefRoute
   , getIface
   , randPort
-  , emit) where
+  , emit
+  , emitdbg) where
 
 
 import System.Exit
@@ -17,7 +18,7 @@ import Network.Info
 import Network.ZRE.Types
 import Control.Concurrent.STM
 import Control.Exception
-import Network.Socket
+import Network.Socket hiding (Debug)
 
 import Data.UUID (UUID, toByteString)
 import Data.Maybe
@@ -53,11 +54,8 @@ randPort ip = loop (100 :: Int)
   where
     loop cnt = do
       port <- randomRIO (41000, 41010)
-      print port
-      print cnt
       (xAddr:_) <- getAddrInfo Nothing (Just $ B.unpack ip) (Just $ show port)
       esocket <- try $ getSocket xAddr
-      print esocket
       case esocket :: Either IOException Socket of
         Left e
             | cnt <= 1 -> error $ concat
@@ -82,3 +80,8 @@ emit :: TVar ZREState -> Event -> STM ()
 emit s x = do
   st <- readTVar s
   writeTBQueue (zreIn st) x
+
+emitdbg :: TVar ZREState -> B.ByteString -> STM ()
+emitdbg s x = do
+  st <- readTVar s
+  writeTBQueue (zreIn st) $ Debug x

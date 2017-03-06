@@ -8,7 +8,6 @@ import Control.Concurrent.STM
 import Network.Socket hiding (accept, send, sendTo, recv, recvFrom)
 import Network.Socket.ByteString
 import Network.SockAddr
-import Network.Info
 import Network.Multicast
 
 import Data.UUID

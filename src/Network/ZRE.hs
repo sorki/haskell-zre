@@ -1,6 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-module Network.ZRE (runZre) where
+module Network.ZRE (
+    runZre
+  , readZ
+  , writeZ
+  , unReadZ
+  , API(..)
+  , Event(..)
+  , ZRE
+  , zjoin
+  , zleave
+  , zshout
+  , zshout'
+  , zwhisper
+  , pEndpoint
+  , toASCIIBytes) where
 
 import Prelude hiding (putStrLn, take)
 import Control.Monad hiding (join)
@@ -8,16 +22,17 @@ import Control.Monad.IO.Class
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Network.BSD (getHostName)
-import Network.Socket hiding (accept, send, sendTo, recv, recvFrom)
+import Network.Socket (getAddrInfo)
 import Network.Info
 
+import Data.UUID
 import Data.UUID.V1
 import Data.Maybe
 
 import qualified Data.Set as S
 import qualified Data.ByteString.Char8 as B
 
-import Data.ZRE
+import qualified Data.ZRE as Z
 import qualified Data.ZGossip as ZGS
 import Network.ZRE.Beacon
 import Network.ZRE.Utils
@@ -89,23 +104,17 @@ handleApi s action = do
       incGroupSeq
       modifyTVar s $ \x -> x { zreGroups = S.insert group (zreGroups x) }
       st <- readTVar s
-      msgAll s $ Join group (zreGroupSeq st)
+      msgAllJoin s group (zreGroupSeq st)
 
     DoLeave group -> atomically $ do
       incGroupSeq
       modifyTVar s $ \x -> x { zreGroups = S.delete group (zreGroups x) }
       st <- readTVar s
-      msgAll s $ Leave group (zreGroupSeq st)
+      msgAllLeave s group (zreGroupSeq st)
 
-    DoShoutMulti group mmsg -> atomically $ msgGroup s group $ Shout group mmsg
-    DoShout group msg -> atomically $ msgGroup s group $ Shout group [msg]
-    DoWhisper uuid msg -> atomically $ do
-      mpt <- lookupPeer s uuid
-      case mpt of
-        Nothing -> return ()
-        Just peer -> do
-          p <- readTVar peer
-          msgPeerUUID s (peerUUID p) $ Whisper [msg]
+    DoShout group msg -> atomically $ shoutGroup s group msg
+    DoShoutMulti group mmsg -> atomically $ shoutGroupMulti s group mmsg
+    DoWhisper uuid msg -> atomically $ whisperPeerUUID s uuid msg
 
     DoDiscover uuid endpoint -> do
       mp <- atomically $ lookupPeer s uuid
@@ -114,14 +123,13 @@ handleApi s action = do
         Nothing -> do
           dbg $ B.putStrLn $ B.concat ["New peer from discover ", B.pack $ show uuid, " (", pEndpoint endpoint, ")"]
           void $ makePeer s uuid $ newPeerFromEndpoint endpoint
-      --return ()
   where
     incGroupSeq = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }
 
 -- handles incoming ZRE messages
 -- creates peers, updates state
-inbox :: TVar ZREState -> ZREMsg -> IO ()
-inbox s msg@ZREMsg{..} = do
+inbox :: TVar ZREState -> Z.ZREMsg -> IO ()
+inbox s msg@Z.ZREMsg{..} = do
   let uuid = fromJust msgFrom
 
   dbg $ B.putStrLn "msg"
@@ -135,7 +143,7 @@ inbox s msg@ZREMsg{..} = do
       case msgCmd of
         -- if the peer is not known but a message is HELLO we create a new
         -- peer, for other messages we don't know the endpoint to connect to
-        h@(Hello _endpoint _groups _groupSeq _name _headers) -> do
+        h@(Z.Hello _endpoint _groups _groupSeq _name _headers) -> do
           liftIO $ dbg $ B.putStrLn $ B.concat ["New peer from hello"]
           peer <- makePeer s uuid $ newPeerFromHello h
           atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
@@ -159,34 +167,36 @@ inbox s msg@ZREMsg{..} = do
   dbg $ B.putStrLn "state post-msg"
   dbg $ printAll s
   where
-    recreatePeer uuid h@(Hello _ _ _ _ _) = do
+    recreatePeer uuid h@(Z.Hello _ _ _ _ _) = do
           destroyPeer s uuid
           peer <- makePeer s uuid $ newPeerFromHello h
           atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
     recreatePeer uuid _ = destroyPeer s uuid
 
-handleCmd :: TVar ZREState -> ZREMsg -> TVar Peer -> IO ()
-handleCmd s msg@ZREMsg{..}  peer = do
-      case msgCmd of
-        (Whisper content) -> do
-          atomically $ emit s $ Message msg
-          dbg $ B.putStrLn $ B.intercalate " " ["whisper", B.concat content]
+handleCmd :: TVar ZREState -> Z.ZREMsg -> TVar Peer -> IO ()
+handleCmd s Z.ZREMsg{msgFrom=(Just from), msgTime=(Just time), msgCmd=cmd}  peer = do
+      case cmd of
+        (Z.Whisper content) -> atomically $ do
+          emit s $ Whisper from content time
+          emitdbg s $ B.intercalate " " ["whisper", B.concat content]
 
-        (Shout group content) -> do
-          atomically $ emit s $ Message msg
-          dbg $ B.putStrLn $ B.intercalate " " ["shout for group", group, ">", B.concat content]
+        Z.Shout group content -> atomically $ do
+          emit s $ Shout from group content time
+          emitdbg s $ B.intercalate " " ["shout for group", group, ">", B.concat content]
 
-        (Join group groupSeq) -> do
-          atomically $ joinGroup s peer group groupSeq
-          dbg $ B.putStrLn $ B.intercalate " " ["join", group, bshow groupSeq]
+        Z.Join group groupSeq -> atomically $ do
+          joinGroup s peer group groupSeq
+          emitdbg s $ B.intercalate " " ["join", group, bshow groupSeq]
 
-        (Leave group groupSeq) -> do
-          atomically $ leaveGroup s peer group groupSeq
-          dbg $ B.putStrLn $ B.intercalate " " ["leave", group, bshow groupSeq]
+        Z.Leave group groupSeq -> atomically $ do
+          leaveGroup s peer group groupSeq
+          emitdbg s $ B.intercalate " " ["leave", group, bshow groupSeq]
 
-        Ping -> atomically $ msgPeer peer PingOk
-        PingOk -> return ()
-        (Hello _endpoint groups groupSeq name headers) -> do
+        Z.Ping -> atomically $ do
+          msgPeer peer Z.PingOk
+          emitdbg s $ "ping"
+        Z.PingOk -> return ()
+        Z.Hello endpoint groups groupSeq name headers -> do
           -- if this peer was already registered
           -- (e.g. from beacon) update appropriate data
           atomically $ do
@@ -196,5 +206,6 @@ handleCmd s msg@ZREMsg{..}  peer = do
                        , peerHeaders = headers
                        }
             p <- readTVar peer
-            emit s $ Ready p
+            emit s $ Ready (peerUUID p) name groups headers endpoint
+            emitdbg s $ "update peer"
           return ()

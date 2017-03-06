@@ -12,10 +12,7 @@ import Data.Time
 
 import qualified Data.ByteString.Char8 as B
 
-
-import Data.ZRE
 import Network.ZRE
-import Network.ZRE.Types
 
 main :: IO ()
 main = runZre $ do

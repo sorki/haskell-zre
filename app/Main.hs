@@ -9,12 +9,8 @@ import Control.Concurrent.Async.Lifted
 
 import qualified Data.ByteString.Char8 as B
 
-import Data.ZRE
 import Network.ZRE
-import Network.ZRE.Types
 import Network.ZRE.Parse
-import Network.ZRE.Peer
-import Network.ZRE.Utils
 
 main :: IO ()
 main = runZre chatApp
@@ -25,16 +21,15 @@ chatApp = do
         recv = forever $ do
           evt <- readZ
           case evt of
-            New peer -> put ["New peer", printPeer peer]
-            Ready peer -> put ["Ready peer", printPeer peer]
-            Quit peer -> put ["Peer quit", printPeer peer]
-            GroupJoin peer group -> put ["Join group", group, printPeer peer]
-            GroupLeave peer group -> put ["Leave group", group, printPeer peer]
-            Message m@ZREMsg{..} -> do
-              liftIO $ B.putStrLn $ bshow m
-              case msgCmd of
-                (Shout group content) -> put ["shout for group", group, ">", B.concat content]
-                (Whisper content) -> put ["whisper", B.concat content]
+            New uuid mname groups headers endpoint -> put ["New peer", pEndpoint endpoint]
+            Ready uuid name groups headers endpoint -> put ["Ready peer", name]
+            Quit uuid mname -> put ["Peer quit", toASCIIBytes uuid]
+            GroupJoin uuid group -> put ["Join group", group, toASCIIBytes uuid]
+            GroupLeave uuid group -> put ["Leave group", group, toASCIIBytes uuid]
+            Shout _uuid group content _time -> put ["Shout for group", group, ">", B.concat content]
+            Whisper uuid content _time -> put ["Whisper from", toASCIIBytes uuid, B.concat content]
+            x -> liftIO $ print x
+            _ -> return ()
 
         act = forever $ do
           liftIO $ B.putStr " >"
@@ -45,4 +40,3 @@ chatApp = do
           return ()
 
         put = liftIO . B.putStrLn . (B.intercalate " ")
-        --call = writeZreQueue outQ

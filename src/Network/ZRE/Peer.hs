@@ -19,6 +19,11 @@ module Network.ZRE.Peer (
   , updateLastHeard
   , printPeer
   , printAll
+  , msgAllJoin
+  , msgAllLeave
+  , shoutGroup
+  , shoutGroupMulti
+  , whisperPeerUUID
   ) where
 
 import Control.Monad
@@ -31,9 +36,10 @@ import qualified Data.Set as Set
 import qualified Data.ByteString.Char8 as B
 import Data.Time.Clock
 import Data.UUID
-import Data.ZRE
+import Data.ZRE()
 import System.ZMQ4.Endpoint
-import Network.ZRE.Types
+import Data.ZRE
+import Network.ZRE.Types hiding (Shout, Whisper)
 import Network.ZRE.Utils
 import Network.ZRE.ZMQ (zreDealer)
 
@@ -79,9 +85,9 @@ newPeer s endpoint uuid groups groupSeq mname headers t = do
 
   modifyTVar s $ \x -> x { zrePeers = M.insert uuid np (zrePeers x) }
 
-  emit s $ New p
+  emit s $ New uuid mname groups headers endpoint
   case mname of
-    (Just _) -> emit s $ Ready p
+    (Just name) -> emit s $ Ready uuid name groups headers endpoint
     Nothing -> return ()
 
   joinGroups s np groups groupSeq
@@ -96,6 +102,7 @@ newPeerFromBeacon :: MonadIO m
                   -> TVar ZREState
                   -> STM (TVar Peer, Maybe (m a), Maybe (IO b))
 newPeerFromBeacon addr port t uuid s = do
+  emitdbg s "New peer from beacon"
   let endpoint = newTCPEndpoint addr port
   newPeer s endpoint uuid (Set.empty :: Groups) 0 Nothing M.empty t
 
@@ -105,7 +112,8 @@ newPeerFromHello :: MonadIO m
                  -> UUID
                  -> TVar ZREState
                  -> STM (TVar Peer, Maybe (m a), Maybe (IO b))
-newPeerFromHello (Hello endpoint groups groupSeq name headers) t uuid s =
+newPeerFromHello (Hello endpoint groups groupSeq name headers) t uuid s = do
+  emitdbg s "New peer from hello"
   newPeer s endpoint uuid groups groupSeq (Just name) headers t
 newPeerFromHello _ _ _ _ = fail "not a hello message"
 
@@ -115,7 +123,8 @@ newPeerFromEndpoint :: MonadIO m
                     -> UUID
                     -> TVar ZREState
                     -> STM (TVar Peer, Maybe (m a), Maybe (IO b))
-newPeerFromEndpoint endpoint t uuid s =
+newPeerFromEndpoint endpoint t uuid s = do
+  emitdbg s "New peer from endpoint"
   newPeer s endpoint uuid (Set.empty :: Groups) 0 Nothing M.empty t
 
 makePeer :: TVar ZREState
@@ -152,10 +161,10 @@ destroyPeer s uuid = do
     case mpt of
       Nothing -> return []
       (Just peer) -> do
-        p@Peer{..} <- readTVar peer
+        Peer{..} <- readTVar peer
         modifyTVar s $ \x -> x { zrePeers = M.delete uuid (zrePeers x) }
         leaveGroups s peer peerGroups peerGroupSeq
-        emit s $ Quit p
+        emit s $ Quit uuid peerName
 
         return [peerAsync, peerAsyncPing]
 
@@ -205,7 +214,7 @@ joinGroup s peer group groupSeq = do
   updatePeer peer $ \x -> x { peerGroups = Set.insert group (peerGroups x) }
   updatePeer peer $ \x -> x { peerGroupSeq = groupSeq }
   p <- readTVar peer
-  emit s $ GroupJoin p group
+  emit s $ GroupJoin (peerUUID p) group
   modifyTVar s $ \x -> x { zrePeerGroups = M.alter (f p) group $ zrePeerGroups x }
   where
     f p Nothing = Just $ M.fromList [(peerUUID p, peer)]
@@ -220,7 +229,7 @@ leaveGroup s peer group groupSeq = do
   updatePeer peer $ \x -> x { peerGroups = Set.delete group (peerGroups x) }
   updatePeer peer $ \x -> x { peerGroupSeq = groupSeq }
   p <- readTVar peer
-  emit s $ GroupLeave p group
+  emit s $ GroupLeave (peerUUID p) group
   modifyTVar s $ \x -> x { zrePeerGroups = M.alter (f p) group $ zrePeerGroups x }
   where
     f _ Nothing = Nothing
@@ -258,6 +267,21 @@ msgGroup s groupname msg = do
     Nothing -> return () -- XXX: should report no such group error?
     (Just group) -> do
       mapM_ (flip msgPeer msg) group
+
+shoutGroup :: TVar ZREState -> Group -> B.ByteString -> STM ()
+shoutGroup s group msg = msgGroup s group $ Shout group [msg]
+
+shoutGroupMulti :: TVar ZREState -> Group -> Content -> STM ()
+shoutGroupMulti s group mmsg = msgGroup s group $ Shout group mmsg
+
+msgAllJoin :: TVar ZREState -> Group -> GroupSeq -> STM ()
+msgAllJoin s group sq = msgAll s $ Join group sq
+
+msgAllLeave :: TVar ZREState -> Group -> GroupSeq -> STM ()
+msgAllLeave s group sq = msgAll s $ Leave group sq
+
+whisperPeerUUID :: TVar ZREState -> UUID -> B.ByteString -> STM ()
+whisperPeerUUID s uuid msg = msgPeerUUID s uuid $ Whisper [msg]
 
 printPeers :: M.Map k (TVar Peer) -> IO ()
 printPeers x = do

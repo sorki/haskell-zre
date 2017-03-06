@@ -11,35 +11,19 @@ import Control.Concurrent.Async.Lifted
 
 import qualified Data.ByteString.Char8 as B
 
-
-import Data.ZRE
 import Network.ZRE
-import Network.ZRE.Parse
-import Network.ZRE.Peer
-import Network.ZRE.Types
-import Network.ZRE.Utils
 
 main :: IO ()
 main = runZre app
 
--- v1 non-concurrent
-
---app events api = runZ worker events api
---app events api = runZ test events api
-
---test = control $ \run -> print "kokot" -- dump -- `concurrently` worker
---test = dump `concurrently` worker
---test = dealer
 app = worker
 
 raw = forever $ readZ >>= liftIO .print
 
--- withGroup
-
 worker = forever $ do
   e <- readZ
   case e of
-    (Message ZREMsg{ msgCmd=(Whisper content) }) -> do
+    Whisper _uuid content _time -> do
       liftIO $ B.putStrLn $ B.concat content
       let group = B.concat content
       zjoin group
@@ -53,9 +37,9 @@ worker = forever $ do
 dealer = forever $ do
   e <- readZ
   case e of
-    (Ready p) -> do
+    (Ready uuid _name _groups _headers _endp) -> do
       zjoin "gimme"
-      zwhisper (peerUUID p) "gimme"
+      zwhisper uuid "gimme"
     x -> liftIO $ print x
 --
 ----readZ = do
@@ -63,16 +47,6 @@ dealer = forever $ do
 ----  return
 ----
 --
-
--- v2
-
-app' events api = concurrentZre (wrap recv) (wrap act)
-  where
-    recv = dump
-    act = ap'
-    wrap x = runZ x events api
-
---ap = forever $ readZ >>= liftIO .print
 
 group = "chat"
 
@@ -86,6 +60,6 @@ ap' = do
 dump = forever $ do
   e <- readZ
   case e of
-    (Message ZREMsg{ msgCmd=(Shout group content) })  -> liftIO $ B.putStrLn $ B.concat content
+    Shout _uuid group content time  -> liftIO $ B.putStrLn $ B.concat content
     x -> liftIO $ print x
     --_ -> return ()

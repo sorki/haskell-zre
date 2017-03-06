@@ -11,10 +11,7 @@ import Control.Concurrent.Async.Lifted
 
 import qualified Data.ByteString.Char8 as B
 
-
-import Data.ZRE
 import Network.ZRE
-import Network.ZRE.Types
 
 main :: IO ()
 main = runZre app
@@ -22,7 +19,7 @@ main = runZre app
 replyGroup f = do
     m <- readZ
     case m of
-      (Message ZREMsg{ msgCmd=(Shout g content) }) -> zshout g $ f $ B.concat content
+      Shout _uuid g content _time -> zshout g $ f $ B.concat content
 
 echo = replyGroup id
 rev =  replyGroup B.reverse
@@ -32,7 +29,7 @@ drop' = void $ readZ
 
 handleGroup group action msg = do
     case msg of
-      (Message ZREMsg{ msgCmd=(Shout sgroup content) }) | sgroup == group -> do
+      Shout _uuid g _content _time | g == group -> do
         unReadZ msg
         action
         return True
@@ -40,6 +37,7 @@ handleGroup group action msg = do
 
 passThru action msg = unReadZ msg >> action >> return False
 
+-- match list of handlers against a message, use default handler if not matched
 match hs def = do
   m <- readZ
   handled  <- match' hs m
@@ -56,6 +54,7 @@ match hs def = do
         True -> return True
         False -> match' xs msg
 
+-- join groups and echo messages sent to group a, reverse echo to group b
 app = do
   zjoin "a"
   zjoin "b"

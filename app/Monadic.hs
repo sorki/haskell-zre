@@ -12,10 +12,7 @@ import Control.Concurrent.Async.Lifted
 
 import qualified Data.ByteString.Char8 as B
 
-
-import Data.ZRE
 import Network.ZRE
-import Network.ZRE.Types
 
 main :: IO ()
 main = runZre app
@@ -68,7 +65,7 @@ dump :: ZRE ()
 dump = forever $ do
   e <- readZ
   case e of
-    (Message ZREMsg{ msgCmd=(Shout _ content) })  -> liftIO $ B.putStrLn $ B.concat content
+--    (Message ZREMsg{ msgCmd=(Shout _ content) })  -> liftIO $ B.putStrLn $ B.concat content
     x -> liftIO $ print x
     --_ -> return ()
 
@@ -88,9 +85,8 @@ withGroup g = do
   a <- async $ forever $ zshout g "test" >> secdelay
   forever $ do
     m <- readZ
-    --v <- liftIO $ atomically $ readTBQueue e
     case m of
-      (Message ZREMsg{ msgCmd=(Shout mg content) }) | mg == g  -> zshout g $ B.concat content -- liftIO $ B.putStrLn $ B.concat content
+      Shout _uuid mg content _time | mg == g  -> zshout g $ B.concat content -- liftIO $ B.putStrLn $ B.concat content
       _ -> unReadZ m
 
     --zshout g "test"
