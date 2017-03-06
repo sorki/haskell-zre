@@ -21,8 +21,8 @@ chatApp = do
         recv = forever $ do
           evt <- readZ
           case evt of
-            New uuid mname groups headers endpoint -> put ["New peer", pEndpoint endpoint]
-            Ready uuid name groups headers endpoint -> put ["Ready peer", name]
+            New uuid mname groups headers endpoint -> put ["New peer", toASCIIBytes uuid, pEndpoint endpoint]
+            Ready uuid name groups headers endpoint -> put ["Ready peer", name, toASCIIBytes uuid]
             Quit uuid mname -> put ["Peer quit", toASCIIBytes uuid]
             GroupJoin uuid group -> put ["Join group", group, toASCIIBytes uuid]
             GroupLeave uuid group -> put ["Leave group", group, toASCIIBytes uuid]

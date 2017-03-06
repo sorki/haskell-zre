@@ -68,15 +68,12 @@ runZre app = do
             let mCastEndpoint = newTCPEndpointAddrInfo mCastAddr mCastPort
             let zreEndpoint = newTCPEndpoint (bshow ipv4) zrePort
 
-            let gossipServerEndpoint = newTCPEndpoint "*" gossipPort
             let gossipClientEndpoint = newTCPEndpoint "172.17.1.63" gossipPort
 
             zreName <- fmap B.pack getHostName
 
             inQ <- atomically $ newTBQueue 10
             outQ <- atomically $ newTBQueue 10
-
-            gossipQ <- atomically $ newTBQueue 10
 
             s <- newZREState zreName zreEndpoint u inQ outQ
 
@@ -127,10 +124,7 @@ inbox :: TVar ZREState -> Z.ZREMsg -> IO ()
 inbox s msg@Z.ZREMsg{..} = do
   let uuid = fromJust msgFrom
 
-  dbg $ B.putStrLn "msg"
-  dbg $ print msg
-  dbg $ B.putStrLn "state pre-msg"
-  dbg $ printAll s
+  -- print msg , "state pre-msg", printAll s
 
   mpt <- atomically $ lookupPeer s uuid
   case mpt of
@@ -139,7 +133,6 @@ inbox s msg@Z.ZREMsg{..} = do
         -- if the peer is not known but a message is HELLO we create a new
         -- peer, for other messages we don't know the endpoint to connect to
         h@(Z.Hello _endpoint _groups _groupSeq _name _headers) -> do
-          liftIO $ dbg $ B.putStrLn $ B.concat ["New peer from hello"]
           peer <- makePeer s uuid $ newPeerFromHello h
           atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
         -- silently drop any other messages
@@ -156,11 +149,10 @@ inbox s msg@Z.ZREMsg{..} = do
           atomically $ updatePeer peer $ \x -> x { peerSeq = (peerSeq x) + 1 }
           handleCmd s msg peer
         _ -> do
-          dbg $ B.putStrLn "sequence mismatch, recreating peer"
+          atomically $ emitdbg s "sequence mismatch, recreating peer"
           recreatePeer (peerUUID p) msgCmd
 
-  dbg $ B.putStrLn "state post-msg"
-  dbg $ printAll s
+  -- "state post-msg", printAll s
   where
     recreatePeer uuid h@(Z.Hello _ _ _ _ _) = do
           destroyPeer s uuid
