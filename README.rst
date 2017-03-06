@@ -3,8 +3,8 @@ zre
 
 ZRE protocol implementation https://rfc.zeromq.org/spec:36/ZRE/
 
-Work in progress, most protocol / networking stuff is working,
-interface needs some work.
+Peer-to-peer local area networking with reliable group messaging
+and automatic peer discovery.
 
 Usage
 -----
@@ -20,4 +20,15 @@ Clone and test::
 
 
 Two zre peers should find each other and be able to send message between each other.
-Make sure firewall is disabled as it needs arbitrary ports for now.
+Firewall needs to allow traffic on UDP port 5670 and TCP port range 41000-41100.
+
+Examples
+--------
+
+Few sample applications are provided to get you started:
+
+ - zre - interact and dump events
+ - zrecat <group> - cat messages for group
+ - zretime - send time to time group
+
+These can be installed locally with `stack install` command.
