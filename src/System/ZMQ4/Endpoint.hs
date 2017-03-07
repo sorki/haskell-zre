@@ -3,6 +3,9 @@ module System.ZMQ4.Endpoint (
     parseAttoEndpoint
   , pTransport
   , pEndpoint
+  , endpointAddr
+  , endpointPort
+  , endpointTransport
   , newEndpoint
   , newEndpointPort
   , newEndpointAddrInfo
@@ -89,3 +92,7 @@ parseEndpoint = Endpoint <$> parseTransport <*> parseAddress <*> optional parseP
 
 parseAttoEndpoint :: B.ByteString -> Either String Endpoint
 parseAttoEndpoint = A.parseOnly parseEndpoint
+
+endpointAddr (Endpoint _ a _) = a
+endpointPort (Endpoint _ _ p) = p
+endpointTransport (Endpoint t _ _) = t

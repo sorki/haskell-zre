@@ -21,7 +21,6 @@ module Network.ZRE (
 
 import Prelude hiding (putStrLn, take)
 import Control.Monad hiding (join)
-import Control.Monad.IO.Class
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Network.BSD (getHostName)
@@ -36,7 +35,6 @@ import qualified Data.Set as S
 import qualified Data.ByteString.Char8 as B
 
 import qualified Data.ZRE as Z
-import qualified Data.ZGossip as ZGS
 import Network.ZRE.Beacon
 import Network.ZRE.Utils
 import Network.ZRE.Peer
@@ -65,8 +63,6 @@ runZre app = do
             let uuid = uuidByteString u
             (mCastAddr:_) <- getAddrInfo Nothing (Just mCastIP) (Just $ show mCastPort)
 
-            (gossipAddr:_) <- getAddrInfo Nothing (Just "::1") (Just $ show gossipPort) --  show mCastPort)
-
             let mCastEndpoint = newTCPEndpointAddrInfo mCastAddr mCastPort
             let zreEndpoint = newTCPEndpoint (bshow ipv4) zrePort
 
@@ -79,7 +75,7 @@ runZre app = do
 
             s <- newZREState zreName zreEndpoint u inQ outQ
 
-            void $ runConcurrently $ Concurrently (beaconRecv s) *>
+            void $ runConcurrently $ Concurrently (beaconRecv s mCastEndpoint) *>
                               Concurrently (beacon mCastAddr uuid zrePort) *>
                               Concurrently (zgossipClient uuid gossipClientEndpoint zreEndpoint (zgossipZRE outQ)) *>
                               Concurrently (zreRouter zreEndpoint (inbox s)) *>

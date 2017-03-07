@@ -10,6 +10,7 @@ import Network.Socket.ByteString
 import Network.SockAddr
 import Network.Multicast
 
+import Data.Maybe
 import Data.UUID
 import Data.Time.Clock
 import qualified Data.Map as M
@@ -20,9 +21,9 @@ import Network.ZRE.Peer
 import Network.ZRE.Types
 import System.ZMQ4.Endpoint
 
-beaconRecv :: TVar ZREState -> IO b
-beaconRecv s = do
-    sock <- multicastReceiver mCastIP (fromIntegral mCastPort)
+beaconRecv :: TVar ZREState -> Endpoint -> IO b
+beaconRecv s e = do
+    sock <- multicastReceiver (B.unpack $ endpointAddr e) (fromIntegral $ fromJust $ endpointPort e)
     forever $ do
         (msg, addr) <- recvFrom sock 22
         case parseBeacon msg of
