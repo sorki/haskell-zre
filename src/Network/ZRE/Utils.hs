@@ -36,18 +36,18 @@ exitFail msg = do
 bshow :: (Show a) => a -> B.ByteString
 bshow = B.pack . show
 
-getDefRoute :: IO (Maybe (String, String))
+getDefRoute :: IO (Maybe (B.ByteString, B.ByteString))
 getDefRoute = do
   ipr <- fmap lines $ readProcess "ip" ["route"] []
   return $ listToMaybe $ catMaybes $ map getDef (map words ipr)
   where
-    getDef ("default":"via":gw:"dev":dev:_) = Just (gw, dev)
+    getDef ("default":"via":gw:"dev":dev:_) = Just (B.pack gw, B.pack dev)
     getDef _ = Nothing
 
-getIface :: String -> IO (Maybe NetworkInterface)
+getIface :: B.ByteString -> IO (Maybe NetworkInterface)
 getIface iname = do
   ns <- getNetworkInterfaces
-  return $ listToMaybe $ filter (\x -> name x == iname) ns
+  return $ listToMaybe $ filter (\x -> name x == B.unpack iname) ns
 
 randPort :: B.ByteString -> IO Port
 randPort ip = loop (100 :: Int)

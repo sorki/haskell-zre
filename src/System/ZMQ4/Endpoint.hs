@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module System.ZMQ4.Endpoint (
     parseAttoEndpoint
+  , parseAttoTCPEndpoint
+  , parseAttoUDPEndpoint
   , pTransport
   , pEndpoint
   , endpointAddr
@@ -12,6 +14,7 @@ module System.ZMQ4.Endpoint (
   , newEndpointPortAddrInfo
   , newTCPEndpoint
   , newTCPEndpointAddrInfo
+  , newUDPEndpoint
   , Port
   , Address
   , Transport(..)
@@ -27,7 +30,7 @@ import Network.SockAddr (showSockAddrBS)
 
 type Port = Int
 type Address = B.ByteString
-data Transport = TCP | IPC | InProc | PGM | EPGM
+data Transport = TCP | UDP | IPC | InProc | PGM | EPGM
   deriving (Show, Eq, Ord)
 
 data Endpoint = Endpoint Transport Address (Maybe Port)
@@ -61,6 +64,9 @@ newEndpointPortAddrInfo transport addr port = newEndpointPortAddrInfo' transport
 newTCPEndpoint :: Address -> Port -> Endpoint
 newTCPEndpoint addr port = newEndpointPort TCP addr port
 
+newUDPEndpoint :: Address -> Port -> Endpoint
+newUDPEndpoint addr port = newEndpointPort UDP addr port
+
 newTCPEndpointAddrInfo :: AddrInfo -> Port -> Endpoint
 newTCPEndpointAddrInfo addr port = newEndpointPortAddrInfo TCP addr port
 
@@ -90,8 +96,20 @@ parsePort = do
 parseEndpoint :: Parser Endpoint
 parseEndpoint = Endpoint <$> parseTransport <*> parseAddress <*> optional parsePort
 
+parseTCPEndpoint :: Parser Endpoint
+parseTCPEndpoint = Endpoint <$> pure TCP <*> parseAddress <*> optional parsePort
+
+parseUDPEndpoint :: Parser Endpoint
+parseUDPEndpoint = Endpoint <$> pure UDP <*> parseAddress <*> optional parsePort
+
 parseAttoEndpoint :: B.ByteString -> Either String Endpoint
 parseAttoEndpoint = A.parseOnly parseEndpoint
+
+parseAttoTCPEndpoint :: B.ByteString -> Either String Endpoint
+parseAttoTCPEndpoint = A.parseOnly parseTCPEndpoint
+
+parseAttoUDPEndpoint :: B.ByteString -> Either String Endpoint
+parseAttoUDPEndpoint = A.parseOnly parseUDPEndpoint
 
 endpointAddr (Endpoint _ a _) = a
 endpointPort (Endpoint _ _ p) = p

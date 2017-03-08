@@ -41,6 +41,7 @@ library
                      , containers
                      , mtl
                      , monad-control
+                     , optparse-applicative
                      , transformers-base
                      , sockaddr
                      , process

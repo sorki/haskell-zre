@@ -187,8 +187,7 @@ pinger s peer = forever $ do
           atomically $ writeTBQueue peerQueue $ Ping
           threadDelay quietPingRate
         else do
-          threadDelay $ toDelay (quietPeriod - tdiff)
-  where toDelay = round . sec
+          threadDelay $ sec (quietPeriod - tdiff)
 
 lookupPeer :: TVar ZREState -> UUID -> STM (Maybe (TVar Peer))
 lookupPeer s uuid = do

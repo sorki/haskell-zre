@@ -44,10 +44,80 @@ import System.ZMQ4.Endpoint
 
 import Network.ZGossip
 
-gossipPort = 31337
+import Options.Applicative
+import Data.Semigroup ((<>))
 
-runZre :: ZRE a -> IO ()
+parseCfg :: Parser ZRECfg
+parseCfg = ZRECfg
+  <$> (B.pack <$> strOption
+        (long "name"
+      <> short 'n'
+      <> value "zre"
+      <> help "Node name"))
+  <*> (isec <$> option auto
+        (long "quiet-period"
+      <> short 'q'
+      <> metavar "N"
+      <> value (sec 1)
+      <> help "Ping peer after N seconds"))
+  <*> ((*100000) <$> option auto
+        (long "dead-period"
+      <> short 'd'
+      <> metavar "N"
+      <> value (sec 1)
+      <> help "Mark peer dead after N seconds"))
+  <*> ((*100000) <$> option auto
+         (long "beacon-period"
+      <> short 'b'
+      <> metavar "N"
+      <> value (sec 0.9)
+      <> help "Send beacon every N seconds"))
+  <*> ((map B.pack) <$> many (strOption
+        (long "iface"
+      <> short 'i'
+      <> metavar "IFACE"
+      <> help "Interfaces")))
+  <*> option (attoReadM parseAttoUDPEndpoint)
+        (long "mcast"
+      <> short 'm'
+      <> metavar "IP:PORT"
+      <> value defMCastEndpoint
+      <> help "IP:PORT of the multicast group")
+  <*> optional (option (attoReadM parseAttoTCPEndpoint)
+        (long "gossip"
+      <> short 'g'
+      <> metavar "IP:PORT"
+      <> help "IP:PORT of the gossip server"))
+
+attoReadM p = eitherReader (p . B.pack)
+
 runZre app = do
+  cfg <- execParser opts
+  --print cfg
+  runZre' cfg app
+  where
+    opts = info (parseCfg <**> helper)
+      ( fullDesc
+     <> progDesc "Print a greeting for TARGET"
+     <> header "hello - a test for optparse-applicative" )
+
+getIfaces ifcs = do
+  case ifcs of
+    [] -> do
+      dr <- getDefRoute
+      case dr of
+        Nothing -> exitFail "Unable to get default route"
+        Just (_route, iface) -> do
+          i <- getIface iface
+          return $ [i]
+
+    x  -> do
+      forM x getIface
+
+runZre' :: ZRECfg -> ZRE a -> IO ()
+runZre' ZRECfg{..} app = do
+    ifcs <- getIfaces $ zreInterfaces
+    --print ifcs
     dr <- getDefRoute
     case dr of
       Nothing -> exitFail "Unable to get default route"
@@ -66,7 +136,7 @@ runZre app = do
             let mCastEndpoint = newTCPEndpointAddrInfo mCastAddr mCastPort
             let zreEndpoint = newTCPEndpoint (bshow ipv4) zrePort
 
-            let gossipClientEndpoint = newTCPEndpoint "172.17.1.63" gossipPort
+            --let gossipClientEndpoint = newTCPEndpoint "172.17.1.63" gossipPort
 
             zreName <- fmap B.pack getHostName
 
@@ -75,9 +145,12 @@ runZre app = do
 
             s <- newZREState zreName zreEndpoint u inQ outQ
 
+            case zreZGossip of
+              Nothing -> return ()
+              Just end -> void $ async $ zgossipClient uuid end zreEndpoint (zgossipZRE outQ)
+
             void $ runConcurrently $ Concurrently (beaconRecv s mCastEndpoint) *>
                               Concurrently (beacon mCastAddr uuid zrePort) *>
-                              Concurrently (zgossipClient uuid gossipClientEndpoint zreEndpoint (zgossipZRE outQ)) *>
                               Concurrently (zreRouter zreEndpoint (inbox s)) *>
                               Concurrently (api s) *>
                               Concurrently (runZ app inQ outQ)

@@ -22,9 +22,14 @@ import System.ZMQ4.Endpoint
 mCastPort = 5670 :: Port
 mCastIP = "225.25.25.25"
 
---sec :: (Num a, Fractional b) => a -> b
-sec  = (*1000000)
-msec = (*1000)
+gossipPort = 31337 :: Port
+
+isec :: (Num a) => a -> a
+isec  = (*1000000)
+sec  :: (RealFrac a) => a -> Int
+sec  = round . isec
+msec :: (RealFrac a) => a -> Int
+msec = round . (*1000)
 
 -- send beacon every 1 second
 --zreBeaconMs = 1000000
@@ -38,15 +43,39 @@ zreBeaconMs = 900000 :: Int
 --deadPeriod = (msec 600) / 1000000.0 :: NominalDiffTime
 
 -- lazy
-quietPeriod = (sec 1) / 1000000.0 :: NominalDiffTime
-deadPeriod = (sec 5)  / 1000000.0 :: NominalDiffTime
+quietPeriod = (fromIntegral $ sec 1) / 1000000.0 :: NominalDiffTime
+deadPeriod = (fromIntegral $ sec 5)  / 1000000.0 :: NominalDiffTime
 
-quietPingRate = round (sec 1) :: Int
+quietPingRate = sec 1 :: Int
 
 -- send beacon every 1 ms (much aggressive, will kill networkz)
 --zreBeaconMs = 1000 :: Int
 --quietPeriod = 2000 / 100000.0 :: NominalDiffTime
 --deadPeriod = 6000  / 100000.0 :: NominalDiffTime
+
+data ZRECfg = ZRECfg {
+    zreNamed        :: B.ByteString
+  , zreQuietPeriod  :: Int
+  , zreDeadPeriod   :: Int
+  , zreBeaconPeriod :: Int
+  , zreInterfaces   :: [B.ByteString]
+  , zreMCast        :: Endpoint
+  , zreZGossip      :: Maybe Endpoint
+  } deriving (Show)
+
+defMCastEndpoint :: Endpoint
+defMCastEndpoint = newUDPEndpoint "225.25.25.25" 5670
+
+defaultConf :: ZRECfg
+defaultConf = ZRECfg {
+    zreNamed        = "zre"
+  , zreQuietPeriod  = sec 1
+  , zreDeadPeriod   = sec 5
+  , zreBeaconPeriod = sec 0.9
+  , zreInterfaces   = []
+  , zreZGossip      = Nothing
+  , zreMCast        = defMCastEndpoint
+  }
 
 data Event =
     New UUID (Maybe Name) Groups Headers Endpoint
