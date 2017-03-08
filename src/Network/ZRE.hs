@@ -141,8 +141,6 @@ runZre' ZRECfg{..} app = do
             let mCastEndpoint = newTCPEndpointAddrInfo mCastAddr mCastPort
             let zreEndpoint = newTCPEndpoint (bshow ipv4) zrePort
 
-            --let gossipClientEndpoint = newTCPEndpoint "172.17.1.63" gossipPort
-
             zreName <- fmap B.pack getHostName
 
             inQ <- atomically $ newTBQueue 1000
@@ -167,11 +165,7 @@ runZre' ZRECfg{..} app = do
 
             apiAsync <- async $ api s
             userAppAsync <- async $ runZ app inQ outQ
-            --void $ runConcurrently $ Concurrently (beaconRecv s mCastEndpoint) *>
-            --                  Concurrently (beacon mCastAddr uuid zrePort) *>
-            --                  Concurrently (zreRouter zreEndpoint (inbox s)) *>
-            --                  Concurrently (api s) *>
-            --                  Concurrently (runZ app inQ outQ)
+
             wait apiAsync
             --wait userAppAsync
             return ()
