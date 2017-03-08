@@ -2,14 +2,14 @@ let
   zre = { config, pkgs, lib, ... }: {
   imports =
     [
-      ../zretest.nix
+      ./zretime.nix
       ./common.nix
     ];
   };
   zgossip = { config, pkgs, lib, ... }: {
   imports =
     [
-      ../zgossip.nix
+      ./zgossip.nix
       ./common.nix
     ];
   };
