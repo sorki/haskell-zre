@@ -2,9 +2,11 @@
 {-# LANGUAGE RecordWildCards #-}
 module Network.ZRE (
     runZre
+  , runZre'
   , readZ
   , writeZ
   , unReadZ
+  , defaultConf
   , API(..)
   , Event(..)
   , ZRE
@@ -16,11 +18,13 @@ module Network.ZRE (
   , zwhisper
   , zdebug
   , znodebug
+  , zquit
   , pEndpoint
   , toASCIIBytes) where
 
 import Prelude hiding (putStrLn, take)
 import Control.Monad hiding (join)
+import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Network.BSD (getHostName)
@@ -32,6 +36,7 @@ import Data.UUID.V1
 import Data.Maybe
 
 import qualified Data.Set as S
+import qualified Data.Map as M
 import qualified Data.ByteString.Char8 as B
 
 import qualified Data.ZRE as Z
@@ -149,17 +154,35 @@ runZre' ZRECfg{..} app = do
               Nothing -> return ()
               Just end -> void $ async $ zgossipClient uuid end zreEndpoint (zgossipZRE outQ)
 
-            void $ runConcurrently $ Concurrently (beaconRecv s mCastEndpoint) *>
-                              Concurrently (beacon mCastAddr uuid zrePort) *>
-                              Concurrently (zreRouter zreEndpoint (inbox s)) *>
-                              Concurrently (api s) *>
-                              Concurrently (runZ app inQ outQ)
+            let acts = [
+                    (beaconRecv s mCastEndpoint)
+                  , (beacon mCastAddr uuid zrePort)
+                  , (zreRouter zreEndpoint (inbox s))
+                  ]
+
+            asyncs <- mapM (async) acts
+
+            atomically $ modifyTVar s $ \x ->
+              x { zreIfaces = M.insert iface asyncs (zreIfaces x) }
+
+            apiAsync <- async $ api s
+            userAppAsync <- async $ runZ app inQ outQ
+            --void $ runConcurrently $ Concurrently (beaconRecv s mCastEndpoint) *>
+            --                  Concurrently (beacon mCastAddr uuid zrePort) *>
+            --                  Concurrently (zreRouter zreEndpoint (inbox s)) *>
+            --                  Concurrently (api s) *>
+            --                  Concurrently (runZ app inQ outQ)
+            wait apiAsync
+            --wait userAppAsync
             return ()
 
 api :: TVar ZREState -> IO ()
-api s = forever $ do
+api s = do
   a <- atomically $ readTVar s >>= readTBQueue . zreOut
   handleApi s a
+  case a of
+    DoQuit -> return ()
+    _ -> api s
 
 handleApi :: TVar ZREState -> API -> IO ()
 handleApi s action = do
@@ -188,6 +211,10 @@ handleApi s action = do
           void $ makePeer s uuid $ newPeerFromEndpoint endpoint
 
     DoDebug bool -> atomically $ modifyTVar s $ \x -> x { zreDebug = bool }
+
+    DoQuit -> do
+      -- FIXME: wait for empty peer queues
+      threadDelay (sec 1)
   where
     incGroupSeq = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }
 

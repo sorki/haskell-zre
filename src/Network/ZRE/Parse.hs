@@ -26,6 +26,7 @@ parseCmd =
   <|> DoLeave <$> (string "leave" *> lskip *> word)
   <|> DoShout <$> (string "shout" *> lskip *> word) <*> (lskip *> word)
   <|> DoWhisper <$> (string "whisper" *> uuid) <*> lw
+  <|> (string "quit" >> pure DoQuit)
 
 lw :: Parser B.ByteString
 lw = lskip *> word

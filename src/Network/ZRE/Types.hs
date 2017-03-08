@@ -97,6 +97,7 @@ data API =
   | DoWhisper UUID B.ByteString
   | DoDiscover UUID Endpoint
   | DoDebug Bool
+  | DoQuit
   deriving (Show)
 
 type Peers = M.Map UUID (TVar Peer)
@@ -118,6 +119,7 @@ data ZREState = ZREState {
   , zreDebug      :: Bool
   , zreIn         :: EventQueue
   , zreOut        :: APIQueue
+  , zreIfaces     :: M.Map B.ByteString [Async ()]
   }
 
 data Peer = Peer {
@@ -193,6 +195,9 @@ zdebug = writeZ $ DoDebug True
 znodebug :: ZRE ()
 znodebug = writeZ $ DoDebug False
 
+zquit :: ZRE ()
+zquit = writeZ $ DoQuit
+
 maybeM :: Monad m => m b -> (a -> m b) -> m (Maybe a) -> m b
 maybeM err f value = value >>= maybe err f
 
@@ -214,4 +219,6 @@ newZREState name endpoint u inQ outQ = atomically $ newTVar $
     , zreHeaders = M.empty
     , zreDebug = False
     , zreIn = inQ
-    , zreOut = outQ }
+    , zreOut = outQ
+    , zreIfaces = M.empty
+    }

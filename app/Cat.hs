@@ -18,13 +18,16 @@ main = do
   args <- getArgs
   let group = B.pack $ head args :: B.ByteString
 
-  runZre $ groupCat group
+  -- XXX: FIXME: doesn't uses global parser,
+  -- we should probably have 'zre cat' and only keep this in examples
+  -- not as an app
+  runZre' defaultConf $ groupCat group
 
 groupCat :: Group -> ZRE ()
 groupCat group = do
   zjoin group
-  -- wait a bit so join is received by peers before sending stuff
-  void $ async $ (liftIO $ threadDelay 500000) >> (stdin' group)
+  -- wait a sec so join is received by peers before sending stuff
+  void $ async $ (liftIO $ threadDelay 1000000) >> (stdin' group)
   cat
 
 catln = forever $ do
@@ -50,5 +53,9 @@ bufsize = 1024*128
 stdin' group = do
   liftIO $ hSetBuffering stdin $ BlockBuffering (Just bufsize)
   forever $ do
-    buf <- liftIO $ B.hGetSome stdin bufsize
-    zshout group buf
+    eof <- liftIO $ hIsEOF stdin
+    case eof of
+      True -> zquit
+      False -> do
+        buf <- liftIO $ B.hGetSome stdin bufsize
+        zshout group buf
