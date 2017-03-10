@@ -1,0 +1,60 @@
+%title: ZRE
+%author: srk
+%date: 2017-03-09
+
+-> P2P LAN network protocol implementation <-
+
+---
+
+-> What? <-
+
+* reliable group and direct messaging on LAN
+* peers can join and leave groups at any time
+* peers can detect other peers leaving network
+* peer autodiscovery
+* no central point needed
+* http://zguide.zeromq.org/page:all#toc229
+** Chapter 8 - A Framework for Distributed Computing
+
+---
+
+-> Protocol <-
+
+* Spec https://rfc.zeromq.org/spec:36/ZRE/
+* Messages:
+  * Hello endpoint groups group_seq name headers
+  * Shout group msg
+  * Whisper uuid msg
+  * Join group group_seq
+  * Leave group group_seq
+  * Ping
+  * PingOk
+
+---
+
+-> Implementation <-
+
+* Haskell library with sample applications
+* Source: https://git.48.io/zre/
+
+*_Components_*
+
+* UDP beacon
+  * multicast beacon to 225.25.25.25
+  * port 5670
+* ZMQ dealer/router
+  * port chosen randomly from 41000-41100
+* ZGossip (optional)
+  * port 31337
+
+
+---
+
+-> Demo <-
+
+---
+
+-> End <-
+=========
+* https://git.48.io/zre/
+* http://zguide.zeromq.org/page:all
