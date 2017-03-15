@@ -5,6 +5,7 @@ module Network.ZRE.Utils (
   , bshow
   , getDefRoute
   , getIface
+  , getName
   , randPort
   , emit
   , emitdbg) where
@@ -14,6 +15,7 @@ import System.Exit
 import System.Process
 import System.Random
 import System.ZMQ4.Endpoint
+import Network.BSD (getHostName)
 import Network.Info
 import Network.ZRE.Types
 import Control.Concurrent.STM
@@ -48,6 +50,9 @@ getIface :: B.ByteString -> IO (Maybe NetworkInterface)
 getIface iname = do
   ns <- getNetworkInterfaces
   return $ listToMaybe $ filter (\x -> name x == B.unpack iname) ns
+
+getName "" = fmap B.pack getHostName
+getName x  = return x
 
 randPort :: B.ByteString -> IO Port
 randPort ip = loop (100 :: Int)

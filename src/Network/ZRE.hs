@@ -27,7 +27,6 @@ import Control.Monad hiding (join)
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
-import Network.BSD (getHostName)
 import Network.Socket (getAddrInfo)
 import Network.Info
 
@@ -57,7 +56,7 @@ parseCfg = ZRECfg
   <$> (B.pack <$> strOption
         (long "name"
       <> short 'n'
-      <> value "zre"
+      <> value ""
       <> help "Node name"))
   <*> (isec <$> option auto
         (long "quiet-period"
@@ -98,7 +97,7 @@ attoReadM p = eitherReader (p . B.pack)
 
 runZre app = do
   cfg <- execParser opts
-  --print cfg
+  print cfg
   runZre' cfg app
   where
     opts = info (parseCfg <**> helper)
@@ -141,7 +140,7 @@ runZre' ZRECfg{..} app = do
             let mCastEndpoint = newTCPEndpointAddrInfo mCastAddr mCastPort
             let zreEndpoint = newTCPEndpoint (bshow ipv4) zrePort
 
-            zreName <- fmap B.pack getHostName
+            zreName <- getName zreNamed
 
             inQ <- atomically $ newTBQueue 1000
             outQ <- atomically $ newTBQueue 1000
