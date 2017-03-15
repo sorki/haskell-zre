@@ -49,7 +49,7 @@ import System.ZMQ4.Endpoint
 
 import Network.ZGossip
 
-import Options.Applicative
+import Options.Applicative hiding ((<>))
 import Data.Semigroup ((<>))
 
 parseCfg :: Parser ZRECfg
@@ -103,8 +103,8 @@ runZre app = do
   where
     opts = info (parseCfg <**> helper)
       ( fullDesc
-     <> progDesc "Print a greeting for TARGET"
-     <> header "hello - a test for optparse-applicative" )
+     <> progDesc "ZRE"
+     <> header "zre tools" )
 
 getIfaces ifcs = do
   case ifcs of
