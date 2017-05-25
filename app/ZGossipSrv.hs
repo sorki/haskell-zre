@@ -4,6 +4,7 @@ module Main where
 import Network.ZGossip
 import System.ZMQ4.Endpoint
 
+gossipPort :: Int
 gossipPort = 31337
 
 main :: IO ()

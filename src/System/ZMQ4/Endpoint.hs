@@ -78,7 +78,7 @@ toAddrInfo (Endpoint _ a _) = getAddrInfo Nothing (Just $ B.unpack a) Nothing
 parseTransport :: Parser Transport
 parseTransport = do
   t <- A.takeWhile (/=':')
-  string "://"
+  _ <- string "://"
   r <- case t of
     "tcp" -> pure TCP
     "ipc" -> pure IPC
@@ -94,7 +94,7 @@ parseAddress = A.takeWhile(/=':')
 
 parsePort :: Parser Port
 parsePort = do
-  char ':'
+  _ <- char ':'
   d <- decimal
   return d
 

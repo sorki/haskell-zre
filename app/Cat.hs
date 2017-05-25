@@ -18,7 +18,7 @@ main = do
   args <- getArgs
   let group = B.pack $ head args :: B.ByteString
 
-  -- XXX: FIXME: doesn't uses global parser,
+  -- XXX: FIXME: doesn't uses global option parser,
   -- we should probably have 'zre cat' and only keep this in examples
   -- not as an app
   runZre' defaultConf $ groupCat group
@@ -30,26 +30,31 @@ groupCat group = do
   void $ async $ (liftIO $ threadDelay 1000000) >> (stdin' group)
   cat
 
+catln :: ZRE ()
 catln = forever $ do
   e <- readZ
   case e of
-    Shout _uuid group content time  -> liftIO $ B.putStrLn $ B.concat content
+    Shout _uuid _group content _time  -> liftIO $ B.putStrLn $ B.concat content
     Whisper _uuid content _time -> liftIO $ B.putStrLn $ B.concat content
     _ -> return ()
 
+cat :: ZRE ()
 cat = forever $ do
   e <- readZ
   case e of
-    Shout _uuid group content time  -> liftIO $ B.putStr $ B.concat content
+    Shout _uuid _group content _time  -> liftIO $ B.putStr $ B.concat content
     Whisper _uuid content _time -> liftIO $ B.putStr $ B.concat content
     _ -> return ()
 
+stdinln :: Group -> ZRE ()
 stdinln group = forever $ do
   l <- fmap B.pack $ liftIO getLine
   zshout group l
 
+bufsize :: Int
 bufsize = 1024*128
 
+stdin' :: Group -> ZRE ()
 stdin' group = do
   liftIO $ hSetBuffering stdin $ BlockBuffering (Just bufsize)
   forever $ do

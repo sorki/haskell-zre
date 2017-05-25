@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS_GHC -fno-warn-unused-matches #-}
 module Main where
 
-import Control.Applicative
 import Control.Monad (forever)
 import Control.Monad.IO.Class
 import Control.Concurrent.Async.Lifted
@@ -15,6 +15,7 @@ import Network.ZRE.Parse
 main :: IO ()
 main = runZre chatApp
 
+chatApp :: ZRE (a, b)
 chatApp = do
       recv `concurrently` act
       where
@@ -29,7 +30,6 @@ chatApp = do
             Shout _uuid group content _time -> put ["Shout for group", group, ">", B.concat content]
             Whisper uuid content _time -> put ["Whisper from", toASCIIBytes uuid, B.concat content]
             x -> liftIO $ print x
-            _ -> return ()
 
         act = forever $ do
           liftIO $ B.putStr " >"

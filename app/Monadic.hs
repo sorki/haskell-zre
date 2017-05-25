@@ -1,20 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import Control.Applicative
 import Control.Monad (forever)
 import Control.Monad.IO.Class
 import Control.Concurrent
-import Control.Concurrent.STM
 import Control.Concurrent.Async.Lifted
-
-import qualified Data.ByteString.Char8 as B
 
 import Network.ZRE
 
 main :: IO ()
 main = runZre app
 
+app :: ZRE ((), ())
 app = (recv `concurrently` act)
   where
     recv = dump
