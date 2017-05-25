@@ -27,8 +27,6 @@ import Control.Monad hiding (join)
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
-import Network.Socket (getAddrInfo)
-import Network.Info
 
 import Data.UUID
 import Data.UUID.V1
@@ -48,7 +46,7 @@ import System.ZMQ4.Endpoint
 
 import Network.ZGossip
 
-import Options.Applicative hiding ((<>))
+import Options.Applicative
 import Data.Semigroup ((<>))
 
 parseCfg :: Parser ZRECfg
@@ -62,19 +60,19 @@ parseCfg = ZRECfg
         (long "quiet-period"
       <> short 'q'
       <> metavar "N"
-      <> value (sec 1)
+      <> value (sec (1.0 :: Float))
       <> help "Ping peer after N seconds"))
   <*> ((*100000) <$> option auto
         (long "dead-period"
       <> short 'd'
       <> metavar "N"
-      <> value (sec 1)
+      <> value (sec (1.0 :: Float))
       <> help "Mark peer dead after N seconds"))
   <*> ((*100000) <$> option auto
          (long "beacon-period"
       <> short 'b'
       <> metavar "N"
-      <> value (sec 0.9)
+      <> value (sec (0.9 :: Float))
       <> help "Send beacon every N seconds"))
   <*> ((map B.pack) <$> many (strOption
         (long "iface"
@@ -93,8 +91,10 @@ parseCfg = ZRECfg
       <> metavar "IP:PORT"
       <> help "IP:PORT of the gossip server"))
 
+attoReadM :: (B.ByteString -> Either String a) -> ReadM a
 attoReadM p = eitherReader (p . B.pack)
 
+runZre :: ZRE a -> IO ()
 runZre app = do
   cfg <- execParser opts
   print cfg
@@ -105,6 +105,8 @@ runZre app = do
      <> progDesc "ZRE"
      <> header "zre tools" )
 
+getIfaces :: [B.ByteString]
+          -> IO [(B.ByteString, B.ByteString, B.ByteString)]
 getIfaces ifcs = do
   case ifcs of
     [] -> do
@@ -112,62 +114,60 @@ getIfaces ifcs = do
       case dr of
         Nothing -> exitFail "Unable to get default route"
         Just (_route, iface) -> do
-          i <- getIface iface
+          i <- getIfaceReport iface
           return $ [i]
-
     x  -> do
-      forM x getIface
+      forM x getIfaceReport
+
+runIface :: Show a
+         => TVar ZREState
+         -> Int
+         -> (B.ByteString, B.ByteString, a)
+         -> IO ()
+runIface s port (iface, ipv4, ipv6) = do
+   print ["Bind to", bshow port, bshow iface, bshow ipv4, bshow ipv6]
+   r <- async $ zreRouter (newTCPEndpoint ipv4 port) (inbox s)
+   atomically $ modifyTVar s $ \x ->
+     x { zreIfaces = M.insert iface [r] (zreIfaces x) }
 
 runZre' :: ZRECfg -> ZRE a -> IO ()
 runZre' ZRECfg{..} app = do
-    ifcs <- getIfaces $ zreInterfaces
-    --print ifcs
-    dr <- getDefRoute
-    case dr of
-      Nothing -> exitFail "Unable to get default route"
-      Just (_route, iface) -> do
+    ifcs <- getIfaces zreInterfaces
 
-        ifaceInfo <- getIface iface
-        case ifaceInfo of
-          Nothing -> exitFail "Unable to get info for interace"
-          (Just NetworkInterface{..}) -> do
+    u <- maybeM (exitFail "Unable to get UUID") return nextUUID
+    let uuid = uuidByteString u
 
-            u <- maybeM (exitFail "Unable to get UUID") return nextUUID
-            zrePort <- randPort $ bshow ipv4
-            let uuid = uuidByteString u
-            (mCastAddr:_) <- getAddrInfo Nothing (Just mCastIP) (Just $ show mCastPort)
+    case ifcs of
+      [] -> exitFail "No interfaces found"
+      ifaces@((_ifcname, ipv4, _ipv6):_) -> do
+        zrePort <- randPort ipv4
 
-            let mCastEndpoint = newTCPEndpointAddrInfo mCastAddr mCastPort
-            let zreEndpoint = newTCPEndpoint (bshow ipv4) zrePort
+        let zreEndpoint = newTCPEndpoint ipv4 zrePort
+        print zreEndpoint
 
-            zreName <- getName zreNamed
+        zreName <- getName zreNamed
 
-            inQ <- atomically $ newTBQueue 1000
-            outQ <- atomically $ newTBQueue 1000
+        inQ <- atomically $ newTBQueue 1000
+        outQ <- atomically $ newTBQueue 1000
 
-            s <- newZREState zreName zreEndpoint u inQ outQ
+        s <- newZREState zreName zreEndpoint u inQ outQ
 
-            case zreZGossip of
-              Nothing -> return ()
-              Just end -> void $ async $ zgossipClient uuid end zreEndpoint (zgossipZRE outQ)
+        -- FIXME: support multiple gossip clients
+        case zreZGossip of
+          Nothing -> return ()
+          Just end -> void $ async $ zgossipClient uuid end zreEndpoint (zgossipZRE outQ)
 
-            let acts = [
-                    (beaconRecv s mCastEndpoint)
-                  , (beacon mCastAddr uuid zrePort)
-                  , (zreRouter zreEndpoint (inbox s))
-                  ]
+        (mCastAddr:_) <- toAddrInfo zreMCast
+        _beaconAsync <- async $ beacon mCastAddr uuid zrePort
+        _beaconRecvAsync <- async $ beaconRecv s zreMCast
+        apiAsync <- async $ api s
+        _userAppAsync <- async $ runZ app inQ outQ
 
-            asyncs <- mapM (async) acts
+        mapM_ (runIface s zrePort) ifaces
 
-            atomically $ modifyTVar s $ \x ->
-              x { zreIfaces = M.insert iface asyncs (zreIfaces x) }
-
-            apiAsync <- async $ api s
-            userAppAsync <- async $ runZ app inQ outQ
-
-            wait apiAsync
-            --wait userAppAsync
-            return ()
+        wait apiAsync
+        --wait userAppAsync
+        return ()
 
 api :: TVar ZREState -> IO ()
 api s = do
@@ -178,8 +178,8 @@ api s = do
     _ -> api s
 
 handleApi :: TVar ZREState -> API -> IO ()
-handleApi s action = do
-  case action of
+handleApi s act = do
+  case act of
     DoJoin group -> atomically $ do
       incGroupSeq
       modifyTVar s $ \x -> x { zreGroups = S.insert group (zreGroups x) }
@@ -207,7 +207,7 @@ handleApi s action = do
 
     DoQuit -> do
       -- FIXME: wait for empty peer queues
-      threadDelay (sec 1)
+      threadDelay (sec (1.0 :: Float))
   where
     incGroupSeq = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }
 
@@ -254,7 +254,7 @@ inbox s msg@Z.ZREMsg{..} = do
     recreatePeer uuid _ = destroyPeer s uuid
 
 handleCmd :: TVar ZREState -> Z.ZREMsg -> TVar Peer -> IO ()
-handleCmd s Z.ZREMsg{msgFrom=(Just from), msgTime=(Just time), msgCmd=cmd}  peer = do
+handleCmd s Z.ZREMsg{msgFrom=(Just from), msgTime=(Just time), msgCmd=cmd} peer = do
       case cmd of
         (Z.Whisper content) -> atomically $ do
           emit s $ Whisper from content time
@@ -289,3 +289,4 @@ handleCmd s Z.ZREMsg{msgFrom=(Just from), msgTime=(Just time), msgCmd=cmd}  peer
             emit s $ Ready (peerUUID p) name groups headers endpoint
             emitdbg s $ "update peer"
           return ()
+handleCmd _ _ _ = return ()

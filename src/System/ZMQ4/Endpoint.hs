@@ -15,6 +15,7 @@ module System.ZMQ4.Endpoint (
   , newTCPEndpoint
   , newTCPEndpointAddrInfo
   , newUDPEndpoint
+  , toAddrInfo
   , Port
   , Address
   , Transport(..)
@@ -70,6 +71,10 @@ newUDPEndpoint addr port = newEndpointPort UDP addr port
 newTCPEndpointAddrInfo :: AddrInfo -> Port -> Endpoint
 newTCPEndpointAddrInfo addr port = newEndpointPortAddrInfo TCP addr port
 
+toAddrInfo :: Endpoint -> IO [AddrInfo]
+toAddrInfo (Endpoint _ a (Just p)) = getAddrInfo Nothing (Just $ B.unpack a) (Just $ show p)
+toAddrInfo (Endpoint _ a _) = getAddrInfo Nothing (Just $ B.unpack a) Nothing
+
 parseTransport :: Parser Transport
 parseTransport = do
   t <- A.takeWhile (/=':')
@@ -111,6 +116,11 @@ parseAttoTCPEndpoint = A.parseOnly parseTCPEndpoint
 parseAttoUDPEndpoint :: B.ByteString -> Either String Endpoint
 parseAttoUDPEndpoint = A.parseOnly parseUDPEndpoint
 
+endpointAddr :: Endpoint -> Address
 endpointAddr (Endpoint _ a _) = a
+
+endpointPort :: Endpoint -> Maybe Port
 endpointPort (Endpoint _ _ p) = p
+
+endpointTransport :: Endpoint -> Transport
 endpointTransport (Endpoint t _ _) = t

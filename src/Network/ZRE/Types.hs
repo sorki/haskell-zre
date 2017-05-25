@@ -3,6 +3,7 @@
 
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Network.ZRE.Types where
 
 import Control.Monad.Reader
@@ -19,10 +20,6 @@ import Data.Time.Clock
 import Data.ZRE hiding (Shout, Whisper) -- (Name, Seq, Group, Groups, GroupSeq, Headers, Content, ZRECmd, ZREMsg)
 import System.ZMQ4.Endpoint
 
-mCastPort = 5670 :: Port
-mCastIP = "225.25.25.25"
-
-gossipPort = 31337 :: Port
 
 isec :: (Num a) => a -> a
 isec  = (*1000000)
@@ -31,11 +28,9 @@ sec  = round . isec
 msec :: (RealFrac a) => a -> Int
 msec = round . (*1000)
 
--- send beacon every 1 second
---zreBeaconMs = 1000000
-
 -- send beacon every 0.9 seconds
-zreBeaconMs = 900000 :: Int
+zreBeaconMs :: Int
+zreBeaconMs = 900000
 
 -- send hugz after x mseconds
 -- agressive
@@ -43,10 +38,14 @@ zreBeaconMs = 900000 :: Int
 --deadPeriod = (msec 600) / 1000000.0 :: NominalDiffTime
 
 -- lazy
-quietPeriod = (fromIntegral $ sec 1) / 1000000.0 :: NominalDiffTime
-deadPeriod = (fromIntegral $ sec 5)  / 1000000.0 :: NominalDiffTime
+quietPeriod :: NominalDiffTime
+quietPeriod = (fromIntegral $ sec (1.0 :: Float)) / 1000000.0
 
-quietPingRate = sec 1 :: Int
+deadPeriod :: NominalDiffTime
+deadPeriod = (fromIntegral $ sec (5.0 :: Float))  / 1000000.0
+
+quietPingRate :: Int
+quietPingRate = sec (1.0 :: Float)
 
 -- send beacon every 1 ms (much aggressive, will kill networkz)
 --zreBeaconMs = 1000 :: Int
@@ -69,9 +68,9 @@ defMCastEndpoint = newUDPEndpoint "225.25.25.25" 5670
 defaultConf :: ZRECfg
 defaultConf = ZRECfg {
     zreNamed        = "zre"
-  , zreQuietPeriod  = sec 1
-  , zreDeadPeriod   = sec 5
-  , zreBeaconPeriod = sec 0.9
+  , zreQuietPeriod  = sec (1.0 :: Float)
+  , zreDeadPeriod   = sec (5.0 :: Float)
+  , zreBeaconPeriod = sec (0.9 :: Float)
   , zreInterfaces   = []
   , zreZGossip      = Nothing
   , zreMCast        = defMCastEndpoint

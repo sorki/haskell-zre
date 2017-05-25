@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Network.ZRE.Utils (
     uuidByteString
@@ -5,6 +6,7 @@ module Network.ZRE.Utils (
   , bshow
   , getDefRoute
   , getIface
+  , getIfaceReport
   , getName
   , randPort
   , emit
@@ -51,6 +53,15 @@ getIface iname = do
   ns <- getNetworkInterfaces
   return $ listToMaybe $ filter (\x -> name x == B.unpack iname) ns
 
+getIfaceReport :: B.ByteString
+               -> IO (B.ByteString, B.ByteString, B.ByteString)
+getIfaceReport iname = do
+  i <- getIface iname
+  case i of
+    Nothing -> exitFail $ "Unable to get info for interace " `B.append` iname
+    (Just NetworkInterface{..}) -> return (iname, B.pack $ show ipv4, B.pack $ show ipv6)
+
+getName :: B.ByteString -> IO B.ByteString
 getName "" = fmap B.pack getHostName
 getName x  = return x
 

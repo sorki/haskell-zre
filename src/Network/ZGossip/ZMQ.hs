@@ -65,7 +65,7 @@ zgossipRouter endpoint handler = ZMQ.runZMQ $ do
      input <- ZMQ.receiveMulti sock
      case parseZGS input of
         (Left err, _) -> liftIO $ print $ "Malformed gossip message received: " ++ err
-        (Right msg@ZGSMsg{..}, _) -> do
+        (Right ZGSMsg{..}, _) -> do
             --liftIO $ print msg
             res <- liftIO $ handler (fromJust zgsFrom) zgsCmd
             flip mapM_ res $ \(to, cmd) -> do
