@@ -1,7 +1,7 @@
 name:                zre
 version:             0.1.0.0
 synopsis:            ZRE protocol implementation
-description:         Please see README.md
+description:         See README.rst
 --homepage:            https://
 license:             BSD3
 license-file:        LICENSE
@@ -148,4 +148,4 @@ test-suite zre-test
 
 source-repository head
   type:     git
-  location: https://github.com/githubuser/zre
+  location: https://git.48.io/zre/
