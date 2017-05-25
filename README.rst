@@ -79,3 +79,8 @@ Run server::
 Pass gossip endpoint to apps with::
 
   zre -g <gossip_ip>:31337
+
+Demos
+-----
+
+* https://asciinema.org/a/106340
