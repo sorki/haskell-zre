@@ -24,42 +24,29 @@ replyGroup f = do
 echo = replyGroup id
 rev =  replyGroup B.reverse
 
-dump = readZ >>= liftIO . print
-drop' = void $ readZ
-
-handleGroup group action msg = do
-    case msg of
-      Shout _uuid g _content _time | g == group -> do
-        unReadZ msg
-        action
-        return True
-      _ -> return False
-
-passThru action msg = unReadZ msg >> action >> return False
-
--- match list of handlers against a message, use default handler if not matched
-match hs def = do
-  m <- readZ
-  handled  <- match' hs m
-  case handled of
-    True -> return ()
-    False -> def
-
-  where
-    match' :: [Event -> ZRE Bool] -> Event -> ZRE Bool
-    match' [] _ = return False
-    match' (x:xs) msg = do
-      res <- x msg
-      case res of
-        True -> return True
-        False -> match' xs msg
-
--- join groups and echo messages sent to group a, reverse echo to group b
 app = do
   zjoin "a"
   zjoin "b"
   forever $ match [
-    passThru dump,
-    handleGroup "a" echo,
-    handleGroup "b" rev
-    ] drop' -- dump'
+      handleGroup "a" echo
+    , handleGroup "b" rev
+    ]
+
+isGroupMsg group (Shout _uuid g _content _time) = g == group
+isGroupMsg _ _ = False
+
+handleGroup :: MonadPlus m => Group -> b -> Event -> m b
+handleGroup group action msg = do
+  guard $ isGroupMsg group msg
+  return $ action
+
+match acts = do
+  msg <- readZ
+  go acts msg
+  where
+    go (act:rest) m = do
+      case act m of
+        Nothing -> go rest m
+        Just a -> unReadZ m >> a
+
+    go [] _ = return ()
