@@ -1,20 +1,24 @@
 { mkDerivation, async, attoparsec, base, binary, binary-strict
-, bytestring, containers, mtl, network, network-info
-, network-multicast, process, random, sockaddr, stdenv, stm, time
-, uuid, zeromq4-haskell, lifted-async
+, bytestring, containers, lifted-async, monad-control, mtl, network
+, network-info, network-multicast, optparse-applicative, process
+, random, sockaddr, stdenv, stm, time, transformers-base, uuid
+, zeromq4-haskell
 }:
 mkDerivation {
   pname = "zre";
   version = "0.1.0.0";
-  src = ./.;
+  sha256 = "11lnz7pxmqz39xjqjh1kkgywv0jg81yzi2hrp2ibaw2nslf65xzl";
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
     async attoparsec base binary binary-strict bytestring containers
-    mtl network network-info network-multicast process random sockaddr
-    stm time uuid zeromq4-haskell lifted-async
+    monad-control mtl network network-info network-multicast
+    optparse-applicative process random sockaddr stm time
+    transformers-base uuid zeromq4-haskell
   ];
-  executableHaskellDepends = [ base bytestring ];
+  executableHaskellDepends = [
+    async base bytestring lifted-async monad-control mtl stm time
+  ];
   testHaskellDepends = [ base ];
   description = "ZRE protocol implementation";
   license = stdenv.lib.licenses.bsd3;
