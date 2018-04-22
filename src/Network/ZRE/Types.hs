@@ -16,6 +16,7 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import qualified Data.ByteString.Char8 as B
 import Data.Time.Clock
+import Data.Default
 
 import Data.ZRE hiding (Shout, Whisper) -- (Name, Seq, Group, Groups, GroupSeq, Headers, Content, ZRECmd, ZREMsg)
 import System.ZMQ4.Endpoint
@@ -75,6 +76,9 @@ defaultConf = ZRECfg {
   , zreZGossip      = Nothing
   , zreMCast        = defMCastEndpoint
   }
+
+instance Default ZRECfg where
+  def = defaultConf
 
 data Event =
     New UUID (Maybe Name) Groups Headers Endpoint
