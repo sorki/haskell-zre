@@ -177,6 +177,11 @@ writeZ x = do
   (_, a) <- ask
   liftIO $ atomically $ writeTBQueue a x
 
+getEventQueue :: ZRE (EventQueue)
+getEventQueue = ask >>= return . fst
+getApiQueue :: ZRE (APIQueue)
+getApiQueue = ask >>= return . snd
+
 zjoin :: Group -> ZRE ()
 zjoin = writeZ . DoJoin
 

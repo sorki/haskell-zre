@@ -21,7 +21,9 @@ module Network.ZRE (
   , znodebug
   , zquit
   , pEndpoint
-  , toASCIIBytes) where
+  , toASCIIBytes
+  , getApiQueue
+  , getEventQueue) where
 
 import Prelude hiding (putStrLn, take)
 import Control.Monad hiding (join)
