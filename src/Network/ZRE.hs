@@ -130,7 +130,6 @@ runZreCfg ZRECfg{..} app = do
         mapM_ (runIface s zrePort) ifaces
 
         wait apiAsync
-        --wait userAppAsync
         return ()
 
 api :: TVar ZREState -> IO ()
