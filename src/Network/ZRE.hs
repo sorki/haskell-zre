@@ -111,8 +111,8 @@ runZreCfg ZRECfg{..} app = do
 
         zreName <- getName zreNamed
 
-        inQ <- atomically $ newTBQueue 1000
-        outQ <- atomically $ newTBQueue 1000
+        inQ <- atomically $ newTBQueue 10000
+        outQ <- atomically $ newTBQueue 10000
 
         s <- newZREState zreName zreEndpoint u inQ outQ
 
