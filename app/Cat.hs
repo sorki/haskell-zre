@@ -18,10 +18,7 @@ main = do
   args <- getArgs
   let group = B.pack $ head args :: B.ByteString
 
-  -- XXX: FIXME: doesn't uses global option parser,
-  -- we should probably have 'zre cat' and only keep this in examples
-  -- not as an app
-  runZre' defaultConf $ groupCat group
+  runZre $ groupCat group
 
 groupCat :: Group -> ZRE ()
 groupCat group = do

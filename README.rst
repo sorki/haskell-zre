@@ -28,23 +28,26 @@ Two zre peers should find each other and be able to send message between each ot
 Firewall needs to allow traffic on UDP port 5670 and TCP port range 41000-41100.
 Application picks random port from this range and advertises it to network.
 
-Examples
---------
+Applications
+------------
 
-Few sample applications are provided to get you started:
+Few applications are provided to get you started:
 
  - zre - interact and dump events
  - zrecat <group> - cat messages for group
- - zretime - send time to time group
- - zreworker - mocked worker, accepts whisper with group to send fake job output
 
 These can be installed locally with `stack install` command.
 
-Send current time to time group and cat it try::
+Try running multiple copies of `zre` and `zrecat` on
+the same computer or computers on the local network::
 
-        zretime
-        # in another terminal or networked computer
-        zrecat time
+        zre
+        # another terminal
+        zrecat test
+        # now in original terminal you can join testgroup with
+        > /join test
+        # or send messages to it
+        > /shout test msg
 
 Send uptime periodically to uptime group::
 
@@ -68,7 +71,7 @@ Interact manually::
 ZGossip
 -------
 
-Implementation of gossip protocol is included in form of key value ttl server.
+Implementation of gossip protocol is included in form of key value TTL server.
 This allows connecting peers from different networks (or subnets) not reachable via multicast
 beacon. This service requires TCP port 31337 and can be started with `zgossip_server` binary.
 
@@ -79,6 +82,26 @@ Run server::
 Pass gossip endpoint to apps with::
 
   zre -g <gossip_ip>:31337
+
+Configuration
+-------------
+
+ZRE applications using `runZre` will automatically try to load configuration
+file if `ZRECFG` environment variable points to it. See `zre.conf` for configuration
+example::
+
+  ZRECFG=./zre.conf zrecat test
+
+To be able to use one config for multiple apps and still be able to distinguish between
+them you can also set `ZRENAME` environment variable which overrides name
+from config or default config if `ZRECFG` is not used::
+
+  ZRENAME=zrenode1 zrecat test
+
+Examples
+--------
+
+More examples are located in https://github.com/vpsfreecz/haskell-zre-examples/ repository.
 
 Demos
 -----
