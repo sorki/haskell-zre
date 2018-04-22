@@ -15,7 +15,7 @@
 # resolver:
 #  name: custom-snapshot
 #  location: "./custom-snapshot.yaml"
-resolver: lts-8.2
+resolver: lts-11.4
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -67,6 +67,5 @@ extra-package-dbs: []
 # 
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
-#nix:
-#  enable: true
-#  packages: [pkgconfig zeromq]
+nix:
+  shell-file: shell.nix
