@@ -1,8 +1,8 @@
 name:                zre
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            ZRE protocol implementation
 description:         See README.rst
---homepage:            https://
+homepage:            https://github.com/vpsfreecz/haskell-zre/
 license:             BSD3
 license-file:        LICENSE
 author:              Richard Marko
@@ -17,6 +17,8 @@ library
   hs-source-dirs:      src
   exposed-modules:       Network.ZRE
                        , Network.ZRE.Beacon
+                       , Network.ZRE.Config
+                       , Network.ZRE.Options
                        , Network.ZRE.Parse
                        , Network.ZRE.Peer
                        , Network.ZRE.Utils
@@ -32,6 +34,7 @@ library
   build-depends:       base >= 4.7 && < 5
                      , async
                      , attoparsec
+                     , data-default
                      , network
                      , network-info
                      , network-multicast
@@ -46,6 +49,8 @@ library
                      , sockaddr
                      , process
                      , random
+                     , text
+                     , config-ini
                      , stm
                      , time
                      , uuid
@@ -61,6 +66,8 @@ executable zre
                      , bytestring
                      , async
                      , lifted-async
+                     , repline
+                     , stm
                      , zre
   default-language:    Haskell2010
 
