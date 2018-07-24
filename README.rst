@@ -98,11 +98,6 @@ from config or default config if `ZRECFG` is not used::
 
   ZRENAME=zrenode1 zrecat test
 
-Examples
---------
-
-More examples are located in https://github.com/vpsfreecz/haskell-zre-examples/ repository.
-
 Demos
 -----
 

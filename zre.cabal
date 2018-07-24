@@ -1,7 +1,11 @@
 name:                zre
 version:             0.1.0.1
 synopsis:            ZRE protocol implementation
-description:         See README.rst
+description:         Peer-to-peer local area networking with reliable group messaging
+                     and automatic peer discovery.
+
+                     ZRE protocol implementation according to https://rfc.zeromq.org/spec:36/ZRE/
+
 homepage:            https://github.com/vpsfreecz/haskell-zre/
 license:             BSD3
 license-file:        LICENSE
