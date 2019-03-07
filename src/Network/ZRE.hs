@@ -110,8 +110,9 @@ runZreCfg ZRECfg{..} app = do
 
         zreName <- getName zreNamed
 
-        inQ <- atomically $ newTBQueue 10000
-        outQ <- atomically $ newTBQueue 10000
+        -- 1M events both ways, not sure about this
+        inQ <- atomically $ newTBQueue 1000000
+        outQ <- atomically $ newTBQueue 1000000
 
         s <- newZREState zreName zreEndpoint u inQ outQ zreDbg
 
