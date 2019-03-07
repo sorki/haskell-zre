@@ -106,15 +106,14 @@ runZreCfg ZRECfg{..} app = do
         zrePort <- randPort ipv4
 
         let zreEndpoint = newTCPEndpoint ipv4 zrePort
-        print zreEndpoint
-        B.putStrLn $ "Starting with " <> (bshow zreEndpoint)
+        when zreDbg $ B.putStrLn $ "Starting with " <> (bshow zreEndpoint)
 
         zreName <- getName zreNamed
 
         inQ <- atomically $ newTBQueue 10000
         outQ <- atomically $ newTBQueue 10000
 
-        s <- newZREState zreName zreEndpoint u inQ outQ
+        s <- newZREState zreName zreEndpoint u inQ outQ zreDbg
 
         -- FIXME: support multiple gossip clients
         case zreZGossip of
@@ -237,7 +236,8 @@ handleCmd s Z.ZREMsg{msgFrom=(Just from), msgTime=(Just time), msgCmd=cmd} peer 
 
         Z.Ping -> atomically $ do
           msgPeer peer Z.PingOk
-          emitdbg s $ "ping"
+          p <- readTVar peer
+          emitdbg s $ B.unwords ["sending pings to ", bshow p]
         Z.PingOk -> return ()
         Z.Hello endpoint groups groupSeq name headers -> do
           -- if this peer was already registered

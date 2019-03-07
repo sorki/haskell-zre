@@ -61,6 +61,7 @@ data ZRECfg = ZRECfg {
   , zreInterfaces   :: [B.ByteString]
   , zreMCast        :: Endpoint
   , zreZGossip      :: Maybe Endpoint
+  , zreDbg          :: Bool
   } deriving (Show)
 
 defMCastEndpoint :: Endpoint
@@ -75,6 +76,7 @@ defaultConf = ZRECfg {
   , zreInterfaces   = []
   , zreZGossip      = Nothing
   , zreMCast        = defMCastEndpoint
+  , zreDbg          = False
   }
 
 instance Default ZRECfg where
@@ -214,8 +216,9 @@ newZREState :: Name
             -> UUID
             -> EventQueue
             -> APIQueue
+            -> Bool
             -> IO (TVar ZREState)
-newZREState name endpoint u inQ outQ = atomically $ newTVar $
+newZREState name endpoint u inQ outQ dbg = atomically $ newTVar $
   ZREState {
     zreUUID = u
     , zrePeers = M.empty
@@ -225,7 +228,7 @@ newZREState name endpoint u inQ outQ = atomically $ newTVar $
     , zreGroupSeq = 0
     , zreName = name
     , zreHeaders = M.empty
-    , zreDebug = False
+    , zreDebug = dbg
     , zreIn = inQ
     , zreOut = outQ
     , zreIfaces = M.empty

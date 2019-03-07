@@ -18,13 +18,14 @@ import Data.Default
 
 iniParser :: IniParser ZRECfg
 iniParser = section "zre" $ do
-  zreNamed <- B.pack . T.unpack <$> fieldDef "name" (T.pack . B.unpack $ zreNamed def)
-  zreInterfaces <- fieldDefOf "interfaces" (return . map B.pack . words . T.unpack) []
-  zreQuietPeriod <- fieldDefOf "quiet-period"(fmap isec . number) (zreQuietPeriod def)
-  zreDeadPeriod <- fieldDefOf "dead-period"(fmap isec . number) (zreDeadPeriod def)
-  zreBeaconPeriod <- fieldDefOf "beacon-period"(fmap isec . number) (zreBeaconPeriod def)
-  zreZGossip <- fieldDefOf "gossip" (fmap Just . parseAttoTCPEndpoint . B.pack . T.unpack) (zreZGossip def)
-  zreMCast <- fieldDefOf "multicast-group" (parseAttoTCPEndpoint . B.pack . T.unpack) (zreMCast def)
+  zreNamed        <- B.pack . T.unpack <$> fieldDef "name" (T.pack . B.unpack $ zreNamed def)
+  zreInterfaces   <- fieldDefOf "interfaces" (return . map B.pack . words . T.unpack) []
+  zreQuietPeriod  <- fieldDefOf "quiet-period"  (fmap isec . number) (zreQuietPeriod def)
+  zreDeadPeriod   <- fieldDefOf "dead-period"   (fmap isec . number) (zreDeadPeriod def)
+  zreBeaconPeriod <- fieldDefOf "beacon-period" (fmap isec . number) (zreBeaconPeriod def)
+  zreZGossip      <- fieldDefOf "gossip" (fmap Just . parseAttoTCPEndpoint . B.pack . T.unpack) (zreZGossip def)
+  zreMCast        <- fieldDefOf "multicast-group" (parseAttoTCPEndpoint . B.pack . T.unpack) (zreMCast def)
+  zreDbg          <- fieldDefOf "debug" flag (zreDbg def)
   return $ ZRECfg {..}
 
 parseZRECfg :: FilePath -> IO (Either String ZRECfg)
