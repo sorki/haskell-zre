@@ -55,7 +55,7 @@ replApp = void $ do
 
         repl = do
           q <- getApiQueue
-          liftIO $ evalRepl ">>> " (cmd q) [] (Word completer) ini
+          liftIO $ evalRepl (pure ">>> ") (cmd q) [] Nothing (Word completer) ini
           liftIO $ atomically $ writeTBQueue q DoQuit
 
         cmd :: APIQueue -> String -> Repl ()
