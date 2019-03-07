@@ -3,6 +3,8 @@
 module Network.ZRE.Config where
 
 import System.Environment
+import System.Directory
+import System.FilePath.Posix
 import System.Exit (exitFailure)
 import qualified Data.ByteString.Char8 as B
 import qualified Data.Text as T
@@ -40,9 +42,21 @@ envZRECfg = do
   menv <- lookupEnv "ZRECFG"
   mname <- lookupEnv "ZRENAME"
   case menv of
-    Nothing -> return $ maybe (def) (\x -> def { zreNamed = B.pack x }) mname
+    Nothing -> do
+      hom <- getHomeDirectory
+      let homPth = hom </> ".zre.conf"
+      tst <- doesFileExist homPth
+      case tst of
+        False -> return $ maybeUpdateName def mname
+        True -> do
+          res <- parseZRECfg homPth
+          case res of
+           Left err -> putStrLn ("Unable to parse config: " ++ err) >> exitFailure
+           Right cfg -> return $ maybeUpdateName cfg mname
     Just env -> do
       res <- parseZRECfg env
       case res of
         Left err -> putStrLn ("Unable to parse config: " ++ err) >> exitFailure
-        Right cfg -> return cfg
+        Right cfg -> return $ maybeUpdateName cfg mname
+  where
+    maybeUpdateName cfg mname = maybe cfg (\x -> cfg { zreNamed = B.pack x}) mname

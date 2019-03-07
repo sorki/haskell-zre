@@ -46,6 +46,8 @@ library
                      , binary-strict
                      , bytestring
                      , containers
+                     , directory
+                     , filepath
                      , mtl
                      , monad-control
                      , optparse-applicative
