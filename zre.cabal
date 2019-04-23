@@ -1,5 +1,5 @@
 name:                zre
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            ZRE protocol implementation
 description:         Peer-to-peer local area networking with reliable group messaging
                      and automatic peer discovery.
@@ -161,4 +161,4 @@ test-suite zre-test
 
 source-repository head
   type:     git
-  location: https://git.48.io/zre/
+  location: https://github.com/vpsfreecz/haskell-zre
