@@ -80,12 +80,13 @@ parseTransport = do
   t <- A.takeWhile (/=':')
   _ <- string "://"
   r <- case t of
-    "tcp" -> pure TCP
-    "ipc" -> pure IPC
+    "tcp"    -> pure TCP
+    "udp"    -> pure UDP
+    "ipc"    -> pure IPC
     "inproc" -> pure InProc
-    "pgm" -> pure PGM
-    "epgm" -> pure EPGM
-    _ -> fail $ "Unknown transport" ++ (B.unpack t)
+    "pgm"    -> pure PGM
+    "epgm"   -> pure EPGM
+    _ -> fail $ "Unknown transport " ++ (B.unpack t)
 
   return r
 
