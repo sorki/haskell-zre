@@ -44,8 +44,8 @@ zreRouter endpoint handler = ZMQ.runZMQ $ do
      input <- ZMQ.receiveMulti sock
      now <- liftIO $ getCurrentTime
      case parseZRE input of
-        (Left err, _) -> liftIO $ print $ "Malformed message received: " ++ err
-        (Right msg, _) -> do
+        Left err -> liftIO $ print $ "Malformed message received: " ++ err
+        Right msg -> do
           let updateTime = \x -> x { msgTime = Just now }
           void $ liftIO $ handler (updateTime msg)
           return ()

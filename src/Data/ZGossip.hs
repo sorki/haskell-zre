@@ -22,9 +22,6 @@ import qualified Data.ByteString.Lazy as BL
 
 import GHC.Word
 
-import Data.Binary.Strict.Get
-import Data.Binary.Put
-
 import Data.ZMQParse
 
 import Network.ZRE.Utils (bshow)
@@ -65,7 +62,7 @@ newZGS cmd = ZGSMsg Nothing cmd
 encodeZGS :: ZGSMsg -> B.ByteString
 encodeZGS ZGSMsg{..} = msg
   where
-    msg = BL.toStrict $ runPut $ do
+    msg = runPut $ do
       putWord16be zgsSig
       putWord8 $ cmdCode zgsCmd
       putInt8 $ fromIntegral zgsVer
@@ -103,13 +100,13 @@ parseCmd from = do
 
         return $ ZGSMsg (Just from) zcmd
 
-parseZGS :: [B.ByteString] -> (Either String ZGSMsg, B.ByteString)
+parseZGS :: [B.ByteString] -> Either String ZGSMsg
 parseZGS [from, msg] = parseZgs from msg
-parseZGS x = (Left "empty message", bshow x)
+parseZGS x = Left "empty message"
 
-parseZgs :: B.ByteString -> B.ByteString -> (Either String ZGSMsg, B.ByteString)
+parseZgs :: B.ByteString -> B.ByteString -> Either String ZGSMsg
 parseZgs from msg = flip runGet msg $ do
-  sig <- getWord16be
+  sig <- getInt16
   if sig /= zgsSig
     then fail "Signature mismatch"
     else do

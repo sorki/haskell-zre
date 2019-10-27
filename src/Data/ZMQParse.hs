@@ -1,14 +1,46 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
-module Data.ZMQParse where
+module Data.ZMQParse (
+    getInt8
+  , getInt16
+  , getInt32
+  , parseString
+  , parseStrings
+  , parseLongString
+  , parseKV
+  , parseMap
+  , putByteStringLen
+  , putByteStrings
+  , putLongByteStringLen
+  , putKV
+  , putMap
+  , Get.Get()
+  , runGet
+  , Get.getByteString
+  , Put.Put
+  , Put.PutM
+  , runPut
+  , Put.putInt8
+  , Put.putWord8
+  , Put.putByteString
+  , Put.putWord16be
+  , Put.putWord32be
+  , Put.putInt16be
+  , Put.putInt32be
+  )
+  where
 
 import Prelude hiding (putStrLn, take)
 import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Lazy as BL
 
-import Data.Binary.Strict.Get
-import Data.Binary.Put
+import Data.Binary.Get hiding (getInt8, runGet)
+import Data.Binary.Put hiding (runPut)
 
 import qualified Data.Map as M
+
+import qualified Data.Binary.Get as Get
+import qualified Data.Binary.Put as Put
 
 getInt8 :: (Integral a) => Get a
 getInt8  = fromIntegral <$> getWord8
@@ -72,3 +104,11 @@ putMap m = do
   putInt32be $ fromIntegral $ length ml
   mapM_ putKV ml
   where ml = M.toList m
+
+runGet :: Get a -> B.ByteString -> Either String a
+runGet g b = case Get.runGetOrFail g (BL.fromStrict b) of
+  (Left (_unconsumed, _offset, err)) -> Left err
+  (Right (_unconsumed, _offset, res)) -> Right res
+
+runPut :: Put -> B.ByteString
+runPut = BL.toStrict . Put.runPut

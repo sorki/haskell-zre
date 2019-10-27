@@ -27,8 +27,8 @@ beaconRecv s e = do
     forever $ do
         (msg, addr) <- recvFrom sock 22
         case parseBeacon msg of
-          (Left err, _remainder) -> print err
-          (Right (_lead, _ver, uuid, port), _) -> do
+          Left err -> print err
+          Right (_lead, _ver, uuid, port) -> do
             case addr of
               x@(SockAddrInet _hisport _host) -> do
                 beaconHandle s (showSockAddrBS x) uuid (fromIntegral port)

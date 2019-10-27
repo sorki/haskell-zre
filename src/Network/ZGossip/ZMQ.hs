@@ -41,10 +41,10 @@ zgossipDealer endpoint ourUUID peerQ handler = ZMQ.runZMQ $ do
   let recv = forever $ do
         input <- ZMQ.receiveMulti d
         case parseZGS input of
-           (Left err, _) -> do
+           Left err -> do
              liftIO $ print $ "Malformed gossip message received: " ++ err
              liftIO $ print input
-           (Right msg@ZGSMsg{..}, _) -> do
+           Right msg@ZGSMsg{..} -> do
              liftIO $ handler msg
 
   sa <- ZMQ.async spam
@@ -64,8 +64,8 @@ zgossipRouter endpoint handler = ZMQ.runZMQ $ do
   forever $ do
      input <- ZMQ.receiveMulti sock
      case parseZGS input of
-        (Left err, _) -> liftIO $ print $ "Malformed gossip message received: " ++ err
-        (Right ZGSMsg{..}, _) -> do
+        Left err -> liftIO $ print $ "Malformed gossip message received: " ++ err
+        Right ZGSMsg{..} -> do
             --liftIO $ print msg
             res <- liftIO $ handler (fromJust zgsFrom) zgsCmd
             flip mapM_ res $ \(to, cmd) -> do

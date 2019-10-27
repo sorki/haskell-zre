@@ -22,9 +22,6 @@ import qualified Data.ByteString.Lazy as BL
 
 import GHC.Word
 
-import Data.Binary.Strict.Get
-import Data.Binary.Put
-
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.UUID
@@ -64,7 +61,7 @@ data ZRECmd =
   deriving (Show, Eq, Ord)
 
 zreBeacon :: B.ByteString -> Port -> B.ByteString
-zreBeacon uuid port = BL.toStrict $ runPut $ do
+zreBeacon uuid port = runPut $ do
   putByteString "ZRE"
   -- XXX: for compatibility with zyre implementation
   -- this should use 0x01 instead, but why when
@@ -84,12 +81,12 @@ parseUUID =  do
     Nothing -> fail "Unable to parse UUID"
 
 parseBeacon :: B.ByteString
-            -> (Either String (B.ByteString, Integer, UUID, Integer), B.ByteString)
+            -> (Either String (B.ByteString, Integer, UUID, Integer))
 parseBeacon = runGet $ do
   lead <- getByteString 3
-  ver <- fromIntegral <$> getWord8
+  ver <- getInt8
   uuid <- parseUUID
-  port <- fromIntegral <$> getWord16be
+  port <- getInt16
   return (lead, ver, uuid, port)
 
 cmdCode :: ZRECmd -> Word8
@@ -112,7 +109,7 @@ newZRE seqNum cmd = ZREMsg Nothing seqNum Nothing cmd
 encodeZRE :: ZREMsg -> [B.ByteString]
 encodeZRE ZREMsg{..} = msg:(getContent msgCmd)
   where
-    msg = BL.toStrict $ runPut $ do
+    msg = runPut $ do
       putWord16be zreSig
       putWord8 $ cmdCode msgCmd
       putInt8 $ fromIntegral zreVer
@@ -165,8 +162,8 @@ parseCmd from frames = do
     sqn <- getInt16
 
     case runGet parseUUID from of
-      (Left _err, _) -> fail "No UUID"
-      (Right uuid, _)-> do
+      (Left err) -> fail $ "No UUID: " ++ err
+      (Right uuid)-> do
         if ver /= zreVer
           then fail "Protocol version mismatch"
           else do
@@ -183,13 +180,13 @@ parseCmd from frames = do
 
             return $ ZREMsg (Just uuid) sqn Nothing zcmd
 
-parseZRE :: [B.ByteString] -> (Either String ZREMsg, B.ByteString)
+parseZRE :: [B.ByteString] -> Either String ZREMsg
 parseZRE (from:msg:rest) = parseZre from msg rest
-parseZRE _ = (Left "empty message", "")
+parseZRE _ = Left "empty message"
 
-parseZre :: B.ByteString -> B.ByteString -> Content -> (Either String ZREMsg, B.ByteString)
+parseZre :: B.ByteString -> B.ByteString -> Content -> Either String ZREMsg
 parseZre from msg frames = flip runGet msg $ do
-  sig <- getWord16be
+  sig <- getInt16
   if sig /= zreSig
     then fail "Signature mismatch"
     else do
