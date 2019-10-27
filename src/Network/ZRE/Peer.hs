@@ -115,7 +115,7 @@ newPeerFromHello :: MonadIO m
 newPeerFromHello (Hello endpoint groups groupSeq name headers) t uuid s = do
   emitdbg s "New peer from hello"
   newPeer s endpoint uuid groups groupSeq (Just name) headers t
-newPeerFromHello _ _ _ _ = fail "not a hello message"
+newPeerFromHello _ _ _ _ = error "not a hello message"
 
 newPeerFromEndpoint :: MonadIO m
                     => Endpoint
