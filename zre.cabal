@@ -6,7 +6,7 @@ description:         Peer-to-peer local area networking with reliable group mess
 
                      ZRE protocol implementation according to https://rfc.zeromq.org/spec:36/ZRE/
 
-homepage:            https://github.com/vpsfreecz/haskell-zre/
+homepage:            https://github.com/sorki/haskell-zre/
 license:             BSD3
 license-file:        LICENSE
 author:              Richard Marko
@@ -169,4 +169,4 @@ test-suite zre-test
 
 source-repository head
   type:     git
-  location: https://github.com/vpsfreecz/haskell-zre
+  location: https://github.com/sorki/haskell-zre
