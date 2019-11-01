@@ -9,9 +9,9 @@ mkDerivation {
   pname = "zre";
   version = "0.1.0.2";
   src = fetchgit {
-    url = "https://github.com/sorki/haskell-zre";
-    sha256 = "1s17k2h8izs9pkifavz0x4jzvmm6x4cinxix141cxhjnxkrwlf18";
-    rev = "af18db0e59c438594fb7c772d1e3f990880db974";
+    url = "https://github.com/sorki/haskell-zre/";
+    sha256 = "0z2cjbksiv1l9jbqxj3wsy4px6ld2xpyag3ygrqkf7qjwf5zr2f5";
+    rev = "0ab25960423ee9de49fd7580b383a79df316f046";
     fetchSubmodules = true;
   };
   isLibrary = true;
