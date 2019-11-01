@@ -20,6 +20,8 @@ module Network.ZRE (
   , zdebug
   , znodebug
   , zquit
+  , zrecv
+  , zrecvWithShout
   , pEndpoint
   , toASCIIBytes
   , getApiQueue

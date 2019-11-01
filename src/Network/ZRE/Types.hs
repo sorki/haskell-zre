@@ -208,6 +208,16 @@ znodebug = writeZ $ DoDebug False
 zquit :: ZRE ()
 zquit = writeZ $ DoQuit
 
+zrecv :: ZRE (Event)
+zrecv = readZ
+
+zrecvWithShout:: (B.ByteString -> ZRE ()) -> ZRE ()
+zrecvWithShout f = do
+  e <- zrecv
+  case e of
+    Shout _ _ content _time -> f (B.concat content)
+    _ -> return ()
+
 maybeM :: Monad m => m b -> (a -> m b) -> m (Maybe a) -> m b
 maybeM err f value = value >>= maybe err f
 
