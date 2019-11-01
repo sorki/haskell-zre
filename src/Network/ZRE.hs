@@ -124,10 +124,12 @@ runZreCfg ZRECfg{..} app = do
         (mCastAddr:_) <- toAddrInfo zreMCast
         _beaconAsync <- async $ beacon mCastAddr uuid zrePort
         _beaconRecvAsync <- async $ beaconRecv s zreMCast
-        apiAsync <- async $ api s
-        _userAppAsync <- async $ runZ app inQ outQ
 
         mapM_ (runIface s zrePort) ifaces
+
+        apiAsync <- async $ api s
+        threadDelay 500000
+        _userAppAsync <- async $ runZ (app >> zquit) inQ outQ
 
         wait apiAsync
         return ()
