@@ -173,8 +173,16 @@ handleApi s act = do
     DoDebug bool -> atomically $ modifyTVar s $ \x -> x { zreDebug = bool }
 
     DoQuit -> do
-      -- FIXME: wait for empty peer queues
-      threadDelay (sec (1.0 :: Float))
+      let chk = atomically $ do
+                   s' <- readTVar s
+                   pqs <- forM (M.toList $ zrePeers s') $ \(_, tp) -> readTVar tp >>= isEmptyTBQueue . peerQueue
+                   return $ and pqs
+
+      let loop = do
+              res <- chk
+              unless res $ threadDelay (sec (0.1 :: Float)) >> loop
+
+      loop
   where
     incGroupSeq = modifyTVar s $ \x -> x { zreGroupSeq = (zreGroupSeq x) + 1 }
 
