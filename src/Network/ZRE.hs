@@ -21,11 +21,12 @@ module Network.ZRE (
   , znodebug
   , zquit
   , zrecv
-  , zrecvWithShout
   , pEndpoint
   , toASCIIBytes
   , getApiQueue
-  , getEventQueue) where
+  , getEventQueue
+  , module Network.ZRE.Lib
+  ) where
 
 import Prelude hiding (putStrLn, take)
 import Control.Monad hiding (join)
@@ -44,6 +45,7 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.ZRE as Z
 import Network.ZRE.Beacon
 import Network.ZRE.Config
+import Network.ZRE.Lib
 import Network.ZRE.Options
 import Network.ZRE.Peer
 import Network.ZRE.Types

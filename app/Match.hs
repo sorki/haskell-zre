@@ -29,28 +29,11 @@ app :: ZRE ()
 app = do
   zjoin "a"
   zjoin "b"
+  zjoin "c"
+  zjoin "d"
   forever $ match [
-      handleGroup "a" echo
-    , handleGroup "b" rev
+      isGroupMsg "a" ==> echo
+    , isGroupMsg "b" ==> rev
+    , iff (isGroupMsg "c") echo
+    , decodeShouts (\x -> Right $ B.pack $ show x) (\x -> zshout "d" x)
     ]
-
-isGroupMsg :: Group -> Event -> Bool
-isGroupMsg group (Shout _uuid g _content _time) = g == group
-isGroupMsg _ _ = False
-
-handleGroup :: MonadPlus m => Group -> b -> Event -> m b
-handleGroup group action msg = do
-  guard $ isGroupMsg group msg
-  return $ action
-
-match :: [Event -> Maybe (ZRE ())] -> ZRE ()
-match acts = do
-  msg <- readZ
-  go acts msg
-  where
-    go (act:rest) m = do
-      case act m of
-        Nothing -> go rest m
-        Just a -> unReadZ m >> a
-
-    go [] _ = return ()

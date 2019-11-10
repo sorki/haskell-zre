@@ -22,6 +22,7 @@ library
   exposed-modules:       Network.ZRE
                        , Network.ZRE.Beacon
                        , Network.ZRE.Config
+                       , Network.ZRE.Lib
                        , Network.ZRE.Options
                        , Network.ZRE.Parse
                        , Network.ZRE.Peer
