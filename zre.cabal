@@ -41,6 +41,7 @@ library
                      , attoparsec
                      , data-default
                      , network
+                     , network-bsd
                      , network-info
                      , network-multicast
                      , binary
