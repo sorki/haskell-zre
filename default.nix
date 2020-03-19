@@ -1,2 +1,2 @@
-{ nixpkgs ? import <nixpkgs> {}, compiler ? "ghc881" }:
-nixpkgs.haskell.packages.${compiler}.callPackage ./zre.nix { }
+{ nixpkgs ? import <nixpkgs> {}, compiler ? "ghc883" }:
+nixpkgs.haskell.packages.${compiler}.callCabal2nix "zre" ./. { }
