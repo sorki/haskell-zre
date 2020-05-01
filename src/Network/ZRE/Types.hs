@@ -150,10 +150,13 @@ instance Show a => Show (Async a) where
 
 newtype ZRE a = Z {
   runZ' :: ReaderT (EventQueue, APIQueue) IO a
-}
-  deriving (Functor, Applicative, Monad, MonadIO,
-    MonadBase IO,
-    MonadReader (EventQueue, APIQueue))
+  } deriving (
+      Functor
+    , Applicative
+    , Monad
+    , MonadIO
+    , MonadBase IO
+    , MonadReader (EventQueue, APIQueue))
 
 instance MonadBaseControl IO ZRE where
   type StM ZRE a = a
