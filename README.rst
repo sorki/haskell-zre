@@ -15,14 +15,12 @@ Dependencies::
 
 Clone and test::
 
-        git clone https://git.48.io/zre/
-        cd zre
-        stack build
-        stack exec zre
+        git clone https://github.com/sorki/haskell-zre/
+        cd haskell-zre
+        nix-build
+        ./result/bin/zre
         # in another terminal or networked computer
-        stack exec zre
-        # optionally install zre binaries
-        stack install
+        ./result/bin/zre
 
 Two zre peers should find each other and be able to send message between each other.
 Firewall needs to allow traffic on UDP port 5670 and TCP port range 41000-41100.
@@ -36,7 +34,7 @@ Few applications are provided to get you started:
  - zre - interact and dump events
  - zrecat <group> - cat messages for group
 
-These can be installed locally with `stack install` command.
+These can be installed locally using `pkgs.haskellPackage.zre`.
 
 Try running multiple copies of `zre` and `zrecat` on
 the same computer or computers on the local network::
