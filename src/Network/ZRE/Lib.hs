@@ -4,19 +4,19 @@ import Control.Applicative
 import Control.Monad
 
 import Data.Either
-import qualified Data.ByteString.Char8 as B
+import qualified Data.ByteString.Char8
 
 import Data.ZRE (Group)
 import Network.ZRE.Types
 
-zrecvWithShout:: (B.ByteString -> ZRE ()) -> ZRE ()
+zrecvWithShout:: (Group -> ZRE ()) -> ZRE ()
 zrecvWithShout f = do
   e <- zrecv
   case e of
-    Shout _ _ content _time -> f (B.concat content)
+    Shout _ _ content _time -> f (Data.ByteString.Char8.concat content)
     _ -> return ()
 
-zrecvShouts :: (B.ByteString -> ZRE ()) -> ZRE b
+zrecvShouts :: (Group-> ZRE ()) -> ZRE b
 zrecvShouts fn = forever $ zrecvWithShout fn
 
 whenDecodes :: Monad m
