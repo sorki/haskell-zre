@@ -21,6 +21,7 @@ library
   hs-source-dirs:      src
   exposed-modules:       Network.ZRE
                        , Network.ZRE.Beacon
+                       , Network.ZRE.Chan
                        , Network.ZRE.Config
                        , Network.ZRE.Lib
                        , Network.ZRE.Options
@@ -38,7 +39,9 @@ library
                        , System.ZMQ4.Endpoint
   build-depends:       base >= 4.7 && < 5
                      , async
+                     , lifted-async
                      , attoparsec
+                     , cereal
                      , data-default
                      , network
                      , network-bsd
