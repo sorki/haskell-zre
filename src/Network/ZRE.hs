@@ -12,6 +12,8 @@ module Network.ZRE (
   , Event(..)
   , ZRE
   , Z.Group
+  , Z.mkGroup
+  , Z.unGroup
   , zjoin
   , zleave
   , zshout
@@ -20,6 +22,7 @@ module Network.ZRE (
   , zdebug
   , znodebug
   , zquit
+  , zfail
   , zrecv
   , pEndpoint
   , toASCIIBytes
@@ -239,15 +242,15 @@ handleCmd s Z.ZREMsg{msgFrom=(Just from), msgTime=(Just time), msgCmd=cmd} peer 
 
         Z.Shout group content -> atomically $ do
           emit s $ Shout from group content time
-          emitdbg s $ B.intercalate " " ["shout for group", group, ">", B.concat content]
+          emitdbg s $ B.intercalate " " ["shout for group", Z.unGroup group, ">", B.concat content]
 
         Z.Join group groupSeq -> atomically $ do
           joinGroup s peer group groupSeq
-          emitdbg s $ B.intercalate " " ["join", group, bshow groupSeq]
+          emitdbg s $ B.intercalate " " ["join", Z.unGroup group, bshow groupSeq]
 
         Z.Leave group groupSeq -> atomically $ do
           leaveGroup s peer group groupSeq
-          emitdbg s $ B.intercalate " " ["leave", group, bshow groupSeq]
+          emitdbg s $ B.intercalate " " ["leave", Z.unGroup group, bshow groupSeq]
 
         Z.Ping -> atomically $ do
           msgPeer peer Z.PingOk

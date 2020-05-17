@@ -21,7 +21,7 @@ raw :: ZRE ()
 raw = forever $ readZ >>= liftIO .print
 
 workersGroup :: Group
-workersGroup = "work"
+workersGroup = mkGroup "work"
 
 worker :: ZRE ()
 worker = forever $ do
@@ -29,7 +29,7 @@ worker = forever $ do
   case e of
     Whisper _uuid content _time -> do
       liftIO $ B.putStrLn $ B.concat content
-      let grp = B.concat content
+      let grp = mkGroup $ B.concat content
       zjoin grp
       void $ async $ forever $ do
         zshout workersGroup msg
@@ -44,6 +44,6 @@ dealer = forever $ do
   e <- readZ
   case e of
     (Ready uuid _name _groups _headers _endp) -> do
-      zjoin "gimme"
+      zjoin $ mkGroup "gimme"
       zwhisper uuid "gimme"
     x -> liftIO $ print x

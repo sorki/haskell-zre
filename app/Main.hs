@@ -47,9 +47,9 @@ replApp = void $ do
             New uuid mname groups headers endpoint -> put ["New peer", toASCIIBytes uuid, pEndpoint endpoint]
             Ready uuid name groups headers endpoint -> put ["Ready peer", name, toASCIIBytes uuid]
             Quit uuid mname -> put ["Peer quit", toASCIIBytes uuid]
-            GroupJoin uuid group -> put ["Join group", group, toASCIIBytes uuid]
-            GroupLeave uuid group -> put ["Leave group", group, toASCIIBytes uuid]
-            Shout _uuid group content _time -> put ["Shout for group", group, ">", B.concat content]
+            GroupJoin uuid group -> put ["Join group", unGroup group, toASCIIBytes uuid]
+            GroupLeave uuid group -> put ["Leave group", unGroup group, toASCIIBytes uuid]
+            Shout _uuid group content _time -> put ["Shout for group", unGroup group, ">", B.concat content]
             Whisper uuid content _time -> put ["Whisper from", toASCIIBytes uuid, B.concat content]
             x -> liftIO $ print x
 

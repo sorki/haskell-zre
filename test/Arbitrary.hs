@@ -38,6 +38,9 @@ instance Arbitrary Endpoint where
                        <*> (fmap abs <$> arbitrary)
 
 
+instance Arbitrary Group where
+  arbitrary = mkGroup <$> arbitrary
+
 instance Arbitrary ZRECmd where
   arbitrary = oneof [
       Hello <$> arbitrary

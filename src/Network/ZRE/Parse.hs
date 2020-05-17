@@ -8,6 +8,7 @@ import Data.UUID
 import Data.Attoparsec.ByteString.Char8 as A
 import qualified Data.ByteString.Char8 as B
 
+import Data.ZRE (mkGroup)
 import Network.ZRE.Types
 
 parseAttoApi :: B.ByteString -> Either String API
@@ -22,9 +23,9 @@ parseControl = char '/' *> parseCmd
 
 parseCmd :: Parser API
 parseCmd =
-      DoJoin <$> (string "join" *> lskip *> word)
-  <|> DoLeave <$> (string "leave" *> lskip *> word)
-  <|> DoShout <$> (string "shout" *> lskip *> word) <*> (lskip *> word)
+      DoJoin . mkGroup  <$> (string "join" *> lskip *> word)
+  <|> DoLeave . mkGroup <$> (string "leave" *> lskip *> word)
+  <|> DoShout <$> (string "shout" *> lskip *> (mkGroup <$> word)) <*> (lskip *> word)
   <|> DoWhisper <$> (string "whisper" *> uuid) <*> lw
   <|> DoDebug <$> (string "debug" *> pure True)
   <|> DoDebug <$> (string "nodebug" *> pure False)

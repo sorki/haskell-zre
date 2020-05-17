@@ -1,5 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Data.ZRE (
     zreVer
   , newZRE
@@ -11,24 +17,39 @@ module Data.ZRE (
   , Headers
   , Content
   , Group
+  , mkGroup
+  , unGroup
   , Groups
   , Seq
   , GroupSeq
   , ZREMsg(..)
-  , ZRECmd(..)) where
+  , ZRECmd(..)
+  , SymbolicGroup
+  , KnownGroup
+  , knownToGroup
+  ) where
+
 import Prelude hiding (putStrLn, take)
+import Data.ByteString (ByteString)
+
 import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy as BL
 
 import GHC.Word
 
-import qualified Data.Map as M
-import qualified Data.Set as S
+import Data.Map (Map)
+import Data.Set (Set)
+
+import qualified Data.Set
+
 import Data.UUID
 import Data.Time.Clock
 
 import System.ZMQ4.Endpoint
 import Data.ZMQParse
+
+import GHC.TypeLits
+import Data.Proxy
 
 zreVer :: Int
 zreVer = 2
@@ -37,10 +58,28 @@ zreSig = 0xAAA1
 
 type Seq = Int
 type GroupSeq = Int
-type Group = B.ByteString
-type Groups = S.Set Group
+
+type SymbolicGroup = Symbol
+type KnownGroup = KnownSymbol
+
+-- | Convert from symbolic "KnownGroup" to "Group".
+knownToGroup :: forall n. KnownGroup n => Group
+knownToGroup  = Group $ B.pack $ symbolVal @n Proxy
+
+newtype Group = Group ByteString
+  deriving (Show, Eq, Ord)
+
+-- | Constructor for "Group"
+mkGroup :: ByteString -> Group
+mkGroup = Group
+
+unGroup :: Group -> ByteString
+unGroup (Group a) = a
+
+type Groups = Set Group
+
 type Name = B.ByteString
-type Headers = M.Map B.ByteString B.ByteString
+type Headers = Map B.ByteString B.ByteString
 type Content = [B.ByteString]
 
 data ZREMsg = ZREMsg {
@@ -119,23 +158,26 @@ encodeZRE ZREMsg{..} = msg:(getContent msgCmd)
 encodeCmd :: ZRECmd -> PutM ()
 encodeCmd (Hello endpoint groups statusSeq name headers) = do
   putByteStringLen (pEndpoint endpoint)
-  putByteStrings groups
+  putByteStrings $ (Data.Set.map (\(Group g) -> g)) groups
   putInt8 $ fromIntegral statusSeq
   putByteStringLen name
   putMap headers
-encodeCmd (Shout group _content) = putByteStringLen group
+encodeCmd (Shout group _content) = putGroup group
 encodeCmd (Join group statusSeq) = do
-  putByteStringLen group
+  putGroup group
   putInt8 $ fromIntegral statusSeq
 encodeCmd (Leave group statusSeq) = do
-  putByteStringLen group
+  putGroup group
   putInt8 $ fromIntegral statusSeq
 encodeCmd _ = return ()
+
+putGroup :: Group -> PutM ()
+putGroup (Group g) = putByteStringLen g
 
 parseHello :: Get ZRECmd
 parseHello = Hello
   <$> parseEndpoint'
-  <*> fmap S.fromList parseStrings
+  <*> (Data.Set.fromList . map Group <$> parseStrings)
   <*> getInt8
   <*> parseString
   <*> parseMap
@@ -146,14 +188,17 @@ parseHello = Hello
         (Left err) -> fail $ "Unable to parse endpoint: " ++ err
         (Right endpoint) -> return endpoint
 
+parseGroup :: Get Group
+parseGroup = Group <$> parseString
+
 parseShout :: Content -> Get ZRECmd
-parseShout frames = Shout <$> parseString <*> pure frames
+parseShout frames = Shout <$> parseGroup <*> pure frames
 
 parseJoin :: Get ZRECmd
-parseJoin = Join <$> parseString <*> getInt8
+parseJoin = Join <$> parseGroup <*> getInt8
 
 parseLeave :: Get ZRECmd
-parseLeave = Leave <$> parseString <*> getInt8
+parseLeave = Leave <$> parseGroup <*> getInt8
 
 parseCmd :: B.ByteString -> Content -> Get ZREMsg
 parseCmd from frames = do

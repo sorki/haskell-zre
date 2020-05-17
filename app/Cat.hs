@@ -16,7 +16,7 @@ import Network.ZRE
 main :: IO ()
 main = do
   args <- getArgs
-  let group = B.pack $ head args :: B.ByteString
+  let group = mkGroup $ B.pack $ head args
 
   runZre $ groupCat group
 

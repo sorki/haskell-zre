@@ -293,9 +293,9 @@ printPeers x = do
       p <- atomically $ readTVar pt
       B.putStrLn $ printPeer p
 
-printGroup :: (B.ByteString, M.Map k (TVar Peer)) -> IO ()
-printGroup (k,v) = do
-  B.putStrLn $ B.intercalate " " ["group", k, "->"]
+printGroup :: (Group, M.Map k (TVar Peer)) -> IO ()
+printGroup (g, v) = do
+  B.putStrLn $ B.intercalate " " ["group", unGroup g, "->"]
   printPeers v
 
 printAll :: TVar ZREState -> IO ()

@@ -211,6 +211,11 @@ znodebug = writeZ $ DoDebug False
 zquit :: ZRE ()
 zquit = writeZ $ DoQuit
 
+zfail :: String -> ZRE ()
+zfail errorMsg = do
+  liftIO $ putStrLn errorMsg
+  writeZ $ DoQuit
+
 zrecv :: ZRE (Event)
 zrecv = readZ
 

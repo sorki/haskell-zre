@@ -20,7 +20,7 @@ app = (recv `concurrently` act)
 -- shouts ohai vololo for group, then one vololo per second, forever
 ohaivololo :: ZRE ()
 ohaivololo = do
-  let group = "chat"
+  let group = mkGroup "chat"
   zjoin group
   zshout group "ohai"
   forever $ do
@@ -31,6 +31,4 @@ dump :: ZRE ()
 dump = forever $ do
   e <- readZ
   case e of
---    (Message ZREMsg{ msgCmd=(Shout _ content) })  -> liftIO $ B.putStrLn $ B.concat content
     x -> liftIO $ print x
-    --_ -> return ()
