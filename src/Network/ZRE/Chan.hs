@@ -49,7 +49,7 @@ mapToGroup' fromGroup toGroup fn = do
   Network.ZRE.zjoin fromGroup
   Network.ZRE.zjoin toGroup
 
-  Network.ZRE.zrecvShoutsDecode Data.Serialize.decode
+  Network.ZRE.zrecvShoutsDecode fromGroup Data.Serialize.decode
     $ \(mdec :: Either String from) -> do
       case mdec of
         Left e -> do
@@ -108,7 +108,7 @@ zreChan' outputGroup inputGroup = do
 
     -- receive on inputGroup and forward to output
     Network.ZRE.zjoin inputGroup
-    Network.ZRE.zrecvShoutsDecode Data.Serialize.decode
+    Network.ZRE.zrecvShoutsDecode inputGroup Data.Serialize.decode
       $ either
         (\e -> Network.ZRE.zfail
           $ "zreChan: Unable to decode message from input "

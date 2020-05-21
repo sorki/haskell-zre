@@ -9,22 +9,27 @@ import qualified Data.ByteString.Char8
 import Data.ZRE (Group)
 import Network.ZRE.Types
 
-zrecvWithShout :: (ByteString -> ZRE ())
+zrecvWithShout :: Group
+               -> (ByteString -> ZRE ())
                -> ZRE ()
-zrecvWithShout f = do
+zrecvWithShout group f = do
   e <- zrecv
   case e of
-    Shout _ _ content _time -> f (Data.ByteString.Char8.concat content)
-    _ -> return ()
+    Shout _ forGroup content _time | forGroup == group ->
+      f (Data.ByteString.Char8.concat content)
 
-zrecvShouts :: (ByteString -> ZRE ())
+    _ | otherwise -> return ()
+
+zrecvShouts :: Group
+            -> (ByteString -> ZRE ())
             -> ZRE ()
-zrecvShouts fn = forever $ zrecvWithShout fn
+zrecvShouts group fn = forever $ zrecvWithShout group fn
 
-zrecvShoutsDecode :: (ByteString -> Either String decoded)
+zrecvShoutsDecode :: Group
+                  -> (ByteString -> Either String decoded)
                   -> (Either String decoded -> ZRE ())
                   -> ZRE ()
-zrecvShoutsDecode decFn handler = zrecvShouts $ handler . decFn
+zrecvShoutsDecode group decFn handler = zrecvShouts group $ handler . decFn
 
 decodeShouts :: (Monad m, Alternative m)
              => (Event -> Either String decoded)
