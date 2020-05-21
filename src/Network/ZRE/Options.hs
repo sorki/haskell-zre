@@ -52,7 +52,7 @@ parseOptions = ZRECfg
       <> short 'g'
       <> metavar "IP:PORT"
       <> help "IP:PORT of the gossip server"))
-  <*> (flag' False (long "debug" <> short 'd'))
+  <*> switch (long "debug" <> short 'd')
 
 attoReadM :: (ByteString -> Either String a) -> ReadM a
 attoReadM p = eitherReader (p . B.pack)
