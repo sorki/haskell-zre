@@ -4,6 +4,7 @@ module Network.ZRE.ZMQ (zreRouter, zreDealer) where
 import Control.Monad
 import Control.Concurrent.STM
 import Control.Monad.IO.Class
+import Data.ByteString (ByteString)
 import qualified System.ZMQ4.Monadic as ZMQ
 import qualified Data.ByteString.Char8 as B
 import qualified Data.List.NonEmpty as NE
@@ -14,7 +15,7 @@ import System.ZMQ4.Endpoint
 
 zreDealer :: Control.Monad.IO.Class.MonadIO m
           => Endpoint
-          -> B.ByteString
+          -> ByteString
           -> TBQueue ZRECmd
           -> m a
 zreDealer endpoint ourUUID peerQ = ZMQ.runZMQ $ do
@@ -30,7 +31,7 @@ zreDealer endpoint ourUUID peerQ = ZMQ.runZMQ $ do
   where loop d x = do
            cmd <- liftIO $ atomically $ readTBQueue peerQ
            -- liftIO $ print "Sending" >> (print $ newZRE x cmd)
-           ZMQ.sendMulti d $ (NE.fromList $ encodeZRE $ newZRE x cmd :: NE.NonEmpty B.ByteString)
+           ZMQ.sendMulti d $ (NE.fromList $ encodeZRE $ newZRE x cmd :: NE.NonEmpty ByteString)
            loop d (x+1)
 
 zreRouter :: Control.Monad.IO.Class.MonadIO m

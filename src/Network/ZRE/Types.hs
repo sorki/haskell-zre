@@ -11,10 +11,9 @@ import Control.Monad.Base
 import Control.Monad.Trans.Control
 import Control.Concurrent.Async
 import Control.Concurrent.STM
+import Data.ByteString (ByteString)
+import Data.Map (Map)
 import Data.UUID
-import qualified Data.Map as M
-import qualified Data.Set as S
-import qualified Data.ByteString.Char8 as B
 import Data.Time.Clock
 import Data.Default
 
@@ -54,11 +53,11 @@ quietPingRate = sec (1.0 :: Float)
 --deadPeriod = 6000  / 100000.0 :: NominalDiffTime
 
 data ZRECfg = ZRECfg {
-    zreNamed        :: B.ByteString
+    zreNamed        :: ByteString
   , zreQuietPeriod  :: Int
   , zreDeadPeriod   :: Int
   , zreBeaconPeriod :: Int
-  , zreInterfaces   :: [B.ByteString]
+  , zreInterfaces   :: [ByteString]
   , zreMCast        :: Endpoint
   , zreZGossip      :: Maybe Endpoint
   , zreDbg          :: Bool
@@ -91,22 +90,22 @@ data Event =
   | Message ZREMsg
   | Shout UUID Group Content UTCTime
   | Whisper UUID Content UTCTime
-  | Debug B.ByteString
+  | Debug ByteString
   deriving (Show)
 
 data API =
     DoJoin Group
   | DoLeave Group
-  | DoShout Group B.ByteString
-  | DoShoutMulti Group [B.ByteString]
-  | DoWhisper UUID B.ByteString
+  | DoShout Group ByteString
+  | DoShoutMulti Group [ByteString]
+  | DoWhisper UUID ByteString
   | DoDiscover UUID Endpoint
   | DoDebug Bool
   | DoQuit
   deriving (Show)
 
-type Peers = M.Map UUID (TVar Peer)
-type PeerGroups = M.Map Group Peers
+type Peers = Map UUID (TVar Peer)
+type PeerGroups = Map Group Peers
 
 type EventQueue = TBQueue Event
 type APIQueue = TBQueue API
@@ -124,7 +123,7 @@ data ZREState = ZREState {
   , zreDebug      :: Bool
   , zreIn         :: EventQueue
   , zreOut        :: APIQueue
-  , zreIfaces     :: M.Map B.ByteString [Async ()]
+  , zreIfaces     :: Map ByteString [Async ()]
   }
 
 data Peer = Peer {
@@ -193,13 +192,13 @@ zjoin = writeZ . DoJoin
 zleave :: Group -> ZRE ()
 zleave = writeZ . DoLeave
 
-zshout :: Group -> B.ByteString -> ZRE ()
+zshout :: Group -> ByteString -> ZRE ()
 zshout group msg = writeZ $ DoShout group msg
 
-zshout' :: Group -> [B.ByteString] -> ZRE ()
+zshout' :: Group -> [ByteString] -> ZRE ()
 zshout' group msgs = writeZ $ DoShoutMulti group msgs
 
-zwhisper :: UUID -> B.ByteString -> ZRE ()
+zwhisper :: UUID -> ByteString -> ZRE ()
 zwhisper uuid msg = writeZ $ DoWhisper uuid msg
 
 zdebug :: ZRE ()
@@ -232,15 +231,15 @@ newZREState :: Name
 newZREState name endpoint u inQ outQ dbg = atomically $ newTVar $
   ZREState {
     zreUUID = u
-    , zrePeers = M.empty
-    , zrePeerGroups = M.empty
+    , zrePeers = mempty
+    , zrePeerGroups = mempty
     , zreEndpoint = endpoint
-    , zreGroups = S.empty
+    , zreGroups = mempty
     , zreGroupSeq = 0
     , zreName = name
-    , zreHeaders = M.empty
+    , zreHeaders = mempty
     , zreDebug = dbg
     , zreIn = inQ
     , zreOut = outQ
-    , zreIfaces = M.empty
+    , zreIfaces = mempty
     }

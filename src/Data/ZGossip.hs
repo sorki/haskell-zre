@@ -17,27 +17,27 @@ module Data.ZGossip (
   ) where
 
 import Prelude hiding (putStrLn, take)
-import qualified Data.ByteString.Char8 as B
-import qualified Data.ByteString.Lazy as BL
+import Data.ByteString (ByteString)
 
 import GHC.Word
 
 import Data.ZMQParse
 
-import Network.ZRE.Utils (bshow)
-
+-- | Version of the ZGossip protocol
 zgsVer :: Int
 zgsVer = 1
+
+-- | Signature of the ZGossip protocol
 zgsSig :: Word16
 zgsSig = 0xAAA0
 
-type Peer = B.ByteString
-type Key = B.ByteString
-type Value = B.ByteString
-type TTL = Int
+type Peer  = ByteString
+type Key   = ByteString
+type Value = ByteString
+type TTL   = Int
 
 data ZGSMsg = ZGSMsg {
-    zgsFrom :: Maybe B.ByteString
+    zgsFrom :: Maybe ByteString
   , zgsCmd :: ZGSCmd
   } deriving (Show, Eq, Ord)
 
@@ -59,7 +59,7 @@ cmdCode Invalid         = 0x05
 newZGS :: ZGSCmd -> ZGSMsg
 newZGS cmd = ZGSMsg Nothing cmd
 
-encodeZGS :: ZGSMsg -> B.ByteString
+encodeZGS :: ZGSMsg -> ByteString
 encodeZGS ZGSMsg{..} = msg
   where
     msg = runPut $ do
@@ -81,7 +81,7 @@ parsePublish = Publish
   <*> parseLongString
   <*> getInt32
 
-parseCmd :: B.ByteString -> Get ZGSMsg
+parseCmd :: ByteString -> Get ZGSMsg
 parseCmd from = do
     cmd <- (getInt8 :: Get Int)
     ver <- getInt8
@@ -100,11 +100,11 @@ parseCmd from = do
 
         return $ ZGSMsg (Just from) zcmd
 
-parseZGS :: [B.ByteString] -> Either String ZGSMsg
+parseZGS :: [ByteString] -> Either String ZGSMsg
 parseZGS [from, msg] = parseZgs from msg
 parseZGS x = Left "empty message"
 
-parseZgs :: B.ByteString -> B.ByteString -> Either String ZGSMsg
+parseZgs :: ByteString -> ByteString -> Either String ZGSMsg
 parseZgs from msg = flip runGet msg $ do
   sig <- getInt16
   if sig /= zgsSig

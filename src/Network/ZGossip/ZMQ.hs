@@ -8,6 +8,8 @@ import Control.Monad
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 import Control.Monad.IO.Class
+
+import Data.ByteString (ByteString)
 import qualified System.ZMQ4.Monadic as ZMQ
 import qualified Data.ByteString.Char8 as B
 import qualified Data.List.NonEmpty as NE
@@ -19,7 +21,7 @@ import System.ZMQ4.Endpoint
 
 zgossipDealer :: Control.Monad.IO.Class.MonadIO m
               => Endpoint
-              -> B.ByteString
+              -> ByteString
               -> TBQueue ZGSCmd
               -> (ZGSMsg -> IO ())
               -> m a
@@ -36,7 +38,7 @@ zgossipDealer endpoint ourUUID peerQ handler = ZMQ.runZMQ $ do
   let spam = forever $ do
         cmd <- liftIO $ atomically $ readTBQueue peerQ
         --liftIO $ print "Spreading gossip" >> (print $ newZGS cmd)
-        ZMQ.sendMulti d $ (NE.fromList [encodeZGS $ newZGS cmd] :: NE.NonEmpty B.ByteString)
+        ZMQ.sendMulti d $ (NE.fromList [encodeZGS $ newZGS cmd] :: NE.NonEmpty ByteString)
 
   let recv = forever $ do
         input <- ZMQ.receiveMulti d
@@ -53,9 +55,9 @@ zgossipDealer endpoint ourUUID peerQ handler = ZMQ.runZMQ $ do
 
 zgossipRouter :: (Foldable t, Control.Monad.IO.Class.MonadIO m)
               => Endpoint
-              -> (B.ByteString
+              -> (ByteString
               -> ZGSCmd
-              -> IO (t (B.ByteString, ZGSCmd)))
+              -> IO (t (ByteString, ZGSCmd)))
               -> m a
 zgossipRouter endpoint handler = ZMQ.runZMQ $ do
   sock <- ZMQ.socket ZMQ.Router
@@ -70,5 +72,5 @@ zgossipRouter endpoint handler = ZMQ.runZMQ $ do
             res <- liftIO $ handler (fromJust zgsFrom) zgsCmd
             flip mapM_ res $ \(to, cmd) -> do
               --liftIO $ print "FWDing" >> print (to, cmd)
-              ZMQ.sendMulti sock $ (NE.fromList [to, to, encodeZGS $ newZGS $ cmd ] :: NE.NonEmpty B.ByteString)
+              ZMQ.sendMulti sock $ (NE.fromList [to, to, encodeZGS $ newZGS $ cmd ] :: NE.NonEmpty ByteString)
 

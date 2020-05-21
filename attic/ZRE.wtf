@@ -45,7 +45,7 @@ zmqPort = 1337
 zreBeaconMs = 1000000
 
 data Peer = Peer {
-    peerHost     :: B.ByteString
+    peerHost     :: ByteString
   , peerUUID     :: UUID
   , peerPort     :: Port
   , peerSeq      :: Seq
@@ -68,7 +68,7 @@ newPeerFromBeacon st addr uuid port = newPeer st addr uuid port ([] :: Groups) "
 
 
 data Event =
-  NewPeer B.ByteString UUID Port
+  NewPeer ByteString UUID Port
   deriving (Show)
 
 type Peers = M.Map UUID Peer
@@ -165,13 +165,13 @@ dealer endpoint port ourUUID peerQ = ZMQ.runZMQ $ do
   loop d 0
  -- forever $ do
  --    let msg = ZREMsg ourUUID 0 $ Whisper ["ohai"]
- --    ZMQ.sendMulti d $ (NE.fromList $ encodeZRE $ msg :: NE.NonEmpty B.ByteString)
+ --    ZMQ.sendMulti d $ (NE.fromList $ encodeZRE $ msg :: NE.NonEmpty ByteString)
  --    liftIO $ threadDelay 1000000
   where loop d x = do
            cmd <- liftIO $ atomically $ readTBQueue peerQ
            -- ourUUID is redundant here, switch to maybe
            --let msg = ZREMsg ourUUID x $ Whisper ["ohai"]
-           ZMQ.sendMulti d $ (NE.fromList $ encodeZRE $ newZRE x cmd :: NE.NonEmpty B.ByteString)
+           ZMQ.sendMulti d $ (NE.fromList $ encodeZRE $ newZRE x cmd :: NE.NonEmpty ByteString)
            liftIO $ threadDelay 1000000
            loop d (x+1)
 

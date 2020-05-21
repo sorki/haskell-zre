@@ -13,6 +13,7 @@ import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 
+import Data.ByteString (ByteString)
 import Data.UUID
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -76,10 +77,10 @@ serverHandle _ from Ping = do
 serverHandle _ _ PingOk = return []
 serverHandle _ _ Invalid = return []
 
-tryUUID :: B.ByteString -> B.ByteString
+tryUUID :: ByteString -> ByteString
 tryUUID x = maybe x toASCIIBytes (fromByteString $ BL.fromStrict x)
 
-dbg :: [B.ByteString] -> IO ()
+dbg :: [ByteString] -> IO ()
 dbg = B.putStrLn . (B.intercalate " ")
 
 -- send DoDiscover ZRE API messages on new Publish message

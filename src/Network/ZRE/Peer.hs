@@ -34,6 +34,7 @@ import Control.Concurrent.STM
 import qualified Data.Map as M
 import qualified Data.Set as Set
 import qualified Data.ByteString.Char8 as B
+import Data.ByteString (ByteString)
 import Data.Time.Clock
 import Data.UUID
 import Data.ZRE()
@@ -43,7 +44,7 @@ import Network.ZRE.Types hiding (Shout, Whisper)
 import Network.ZRE.Utils
 import Network.ZRE.ZMQ (zreDealer)
 
-printPeer :: Peer -> B.ByteString
+printPeer :: Peer -> ByteString
 printPeer Peer{..} = B.intercalate " "
   ["Peer",
     bshow peerName,
@@ -270,7 +271,7 @@ msgGroup s groupname msg = do
     (Just group) -> do
       mapM_ (flip msgPeer msg) group
 
-shoutGroup :: TVar ZREState -> Group -> B.ByteString -> STM ()
+shoutGroup :: TVar ZREState -> Group -> ByteString -> STM ()
 shoutGroup s group msg = msgGroup s group $ Shout group [msg]
 
 shoutGroupMulti :: TVar ZREState -> Group -> Content -> STM ()
@@ -282,7 +283,7 @@ msgAllJoin s group sq = msgAll s $ Join group sq
 msgAllLeave :: TVar ZREState -> Group -> GroupSeq -> STM ()
 msgAllLeave s group sq = msgAll s $ Leave group sq
 
-whisperPeerUUID :: TVar ZREState -> UUID -> B.ByteString -> STM ()
+whisperPeerUUID :: TVar ZREState -> UUID -> ByteString -> STM ()
 whisperPeerUUID s uuid msg = msgPeerUUID s uuid $ Whisper [msg]
 
 printPeers :: M.Map k (TVar Peer) -> IO ()

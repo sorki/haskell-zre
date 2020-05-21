@@ -78,9 +78,9 @@ unGroup (Group a) = a
 
 type Groups = Set Group
 
-type Name = B.ByteString
-type Headers = Map B.ByteString B.ByteString
-type Content = [B.ByteString]
+type Name = ByteString
+type Headers = Map ByteString ByteString
+type Content = [ByteString]
 
 data ZREMsg = ZREMsg {
     msgFrom :: Maybe UUID
@@ -99,7 +99,7 @@ data ZRECmd =
   | PingOk
   deriving (Show, Eq, Ord)
 
-zreBeacon :: B.ByteString -> Port -> B.ByteString
+zreBeacon :: ByteString -> Port -> ByteString
 zreBeacon uuid port = runPut $ do
   putByteString "ZRE"
   -- XXX: for compatibility with zyre implementation
@@ -119,8 +119,8 @@ parseUUID =  do
     Just uuid -> return uuid
     Nothing -> fail "Unable to parse UUID"
 
-parseBeacon :: B.ByteString
-            -> (Either String (B.ByteString, Integer, UUID, Integer))
+parseBeacon :: ByteString
+            -> (Either String (ByteString, Integer, UUID, Integer))
 parseBeacon = runGet $ do
   lead <- getByteString 3
   ver <- getInt8
@@ -145,7 +145,7 @@ getContent _ = []
 newZRE :: Seq -> ZRECmd -> ZREMsg
 newZRE seqNum cmd = ZREMsg Nothing seqNum Nothing cmd
 
-encodeZRE :: ZREMsg -> [B.ByteString]
+encodeZRE :: ZREMsg -> [ByteString]
 encodeZRE ZREMsg{..} = msg:(getContent msgCmd)
   where
     msg = runPut $ do
@@ -200,7 +200,7 @@ parseJoin = Join <$> parseGroup <*> getInt8
 parseLeave :: Get ZRECmd
 parseLeave = Leave <$> parseGroup <*> getInt8
 
-parseCmd :: B.ByteString -> Content -> Get ZREMsg
+parseCmd :: ByteString -> Content -> Get ZREMsg
 parseCmd from frames = do
     cmd <- (getInt8 :: Get Int)
     ver <- getInt8
@@ -225,11 +225,11 @@ parseCmd from frames = do
 
             return $ ZREMsg (Just uuid) sqn Nothing zcmd
 
-parseZRE :: [B.ByteString] -> Either String ZREMsg
+parseZRE :: [ByteString] -> Either String ZREMsg
 parseZRE (from:msg:rest) = parseZre from msg rest
 parseZRE _ = Left "empty message"
 
-parseZre :: B.ByteString -> B.ByteString -> Content -> Either String ZREMsg
+parseZre :: ByteString -> ByteString -> Content -> Either String ZREMsg
 parseZre from msg frames = flip runGet msg $ do
   sig <- getInt16
   if sig /= zreSig

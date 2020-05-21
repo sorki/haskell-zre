@@ -1,15 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Network.ZRE.Beacon (beacon, beaconRecv) where
+module Network.ZRE.Beacon (
+    beacon
+  , beaconRecv
+  ) where
 
 import Control.Monad
 import Control.Exception
 import Control.Concurrent
 import Control.Concurrent.STM
-import Network.Socket hiding (accept, send, sendTo, recv, recvFrom)
+import Network.Socket
 import Network.Socket.ByteString
 import Network.SockAddr
 import Network.Multicast
 
+import Data.ByteString (ByteString)
 import Data.Maybe
 import Data.UUID
 import Data.Time.Clock
@@ -21,6 +25,7 @@ import Network.ZRE.Peer
 import Network.ZRE.Types
 import System.ZMQ4.Endpoint
 
+-- | Receive beacons from UDP multicast
 beaconRecv :: TVar ZREState -> Endpoint -> IO b
 beaconRecv s e = do
     sock <- multicastReceiver (B.unpack $ endpointAddr e) (fromIntegral $ fromJust $ endpointPort e)
@@ -36,10 +41,10 @@ beaconRecv s e = do
                 beaconHandle s (showSockAddrBS x) uuid (fromIntegral port)
               _ -> return ()
 
--- handle messages received on beacon
--- creates new peers
--- updates peers last heard
-beaconHandle :: TVar ZREState -> B.ByteString -> UUID -> Int -> IO ()
+-- | Handle messages received on beacon
+-- * creates new peers
+-- * updates peers last heard
+beaconHandle :: TVar ZREState -> ByteString -> UUID -> Int -> IO ()
 beaconHandle s addr uuid port = do
     st <- atomically $ readTVar s
 
@@ -56,8 +61,8 @@ beaconHandle s addr uuid port = do
             return ()
 
 
--- sends udp multicast beacons
-beacon :: AddrInfo -> B.ByteString -> Port -> IO a
+-- | Send UDP multicast beacons periodically
+beacon :: AddrInfo -> ByteString -> Port -> IO a
 beacon addrInfo uuid port = do
     withSocketsDo $ do
       bracket (getSocket addrInfo) close (talk (addrAddress addrInfo) (zreBeacon uuid port))

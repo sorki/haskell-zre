@@ -48,7 +48,7 @@ zreSig = 0xAAA1 :: Word16
 type Port = Int
 
 data Peer = Peer {
-    peerHost  :: B.ByteString
+    peerHost  :: ByteString
   , peerUUID  :: UUID
   , peerPort  :: Port
   , peerAsync :: Async ()
@@ -56,7 +56,7 @@ data Peer = Peer {
 --  } deriving (Show)
 
 data Event =
-  NewPeer B.ByteString UUID Port
+  NewPeer ByteString UUID Port
   deriving (Show)
 
 --type Peers = M.Map SockAddr Peer
@@ -95,7 +95,7 @@ dealer endpoint port ourUUID = ZMQ.runZMQ $ do
   forever $ do
      --ZMQ.send d [] "OHAI"
      --ZMQ.sendMulti d $ "" :| "OHAI"
-     ZMQ.sendMulti d $ (NE.fromList ["OHAI"] :: NE.NonEmpty B.ByteString)
+     ZMQ.sendMulti d $ (NE.fromList ["OHAI"] :: NE.NonEmpty ByteString)
      liftIO $ threadDelay 1000000
 
 router uuid port = ZMQ.runZMQ $ do
@@ -178,13 +178,13 @@ getInt16 = fromIntegral <$> G.getWord16be
 getInt32 = fromIntegral <$> G.getWord32be
 
 type Seq = Int
-type Endpoint = B.ByteString
-type Group = B.ByteString
+type Endpoint = ByteString
+type Group = ByteString
 type Groups = [Group]
 type Status = Int
-type Name = B.ByteString
-type Headers = M.Map B.ByteString B.ByteString
-type Content = [B.ByteString]
+type Name = ByteString
+type Headers = M.Map ByteString ByteString
+type Content = [ByteString]
 
 data ZREMsg = ZREMsg {
     msgSeq :: Seq

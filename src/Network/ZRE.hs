@@ -37,6 +37,7 @@ import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
 
+import Data.ByteString (ByteString)
 import Data.UUID
 import Data.UUID.V1
 import Data.Maybe
@@ -71,8 +72,8 @@ runZreOpts app = do
      <> progDesc "ZRE"
      <> header "zre tools" )
 
-getIfaces :: [B.ByteString]
-          -> IO [(B.ByteString, B.ByteString, B.ByteString)]
+getIfaces :: [ByteString]
+          -> IO [(ByteString, ByteString, ByteString)]
 getIfaces ifcs = do
   case ifcs of
     [] -> do
@@ -88,7 +89,7 @@ getIfaces ifcs = do
 runIface :: Show a
          => TVar ZREState
          -> Int
-         -> (B.ByteString, B.ByteString, a)
+         -> (ByteString, ByteString, a)
          -> IO ()
 runIface s port (iface, ipv4, ipv6) = do
    r <- async $ zreRouter (newTCPEndpoint ipv4 port) (inbox s)

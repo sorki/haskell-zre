@@ -19,28 +19,32 @@ module System.ZMQ4.Endpoint (
   , Port
   , Address
   , Transport(..)
-  , Endpoint(..)) where
+  , Endpoint(..)
+  ) where
 
 import Control.Applicative
 import Data.Attoparsec.ByteString.Char8 as A
-import qualified Data.ByteString.Char8 as B
-import Data.Char (toLower)
+import Data.ByteString (ByteString)
+import Network.Socket (AddrInfo)
 
-import Network.Socket  -- only need addrAddress
-import Network.SockAddr (showSockAddrBS)
+import qualified Data.ByteString.Char8 as B
+import qualified Data.Char
+
+import qualified Network.Socket
+import qualified Network.SockAddr
 
 type Port = Int
-type Address = B.ByteString
+type Address = ByteString
 data Transport = TCP | UDP | IPC | InProc | PGM | EPGM
   deriving (Show, Eq, Ord)
 
 data Endpoint = Endpoint Transport Address (Maybe Port)
   deriving (Show, Eq, Ord)
 
-pTransport :: Show a => a -> B.ByteString
-pTransport x = B.pack $ map toLower $ show x
+pTransport :: Show a => a -> ByteString
+pTransport x = B.pack $ map Data.Char.toLower $ show x
 
-pEndpoint :: Endpoint -> B.ByteString
+pEndpoint :: Endpoint -> ByteString
 pEndpoint (Endpoint t a Nothing) = B.concat [pTransport t, "://" , a]
 pEndpoint (Endpoint t a (Just p)) = B.concat [pTransport t, "://" , a, ":", B.pack $ show p]
 
@@ -54,13 +58,19 @@ newEndpointPort' :: Transport -> Address -> Maybe Port -> Endpoint
 newEndpointPort' transport addr port = Endpoint transport addr port
 
 newEndpointPortAddrInfo' :: Transport -> AddrInfo -> Maybe Port -> Endpoint
-newEndpointPortAddrInfo' transport addr port = newEndpointPort' transport (showSockAddrBS $ addrAddress addr) port
+newEndpointPortAddrInfo' transport addr port =
+  newEndpointPort'
+    transport
+    (Network.SockAddr.showSockAddrBS $ Network.Socket.addrAddress addr)
+    port
 
 newEndpointPort :: Transport -> Address -> Port -> Endpoint
 newEndpointPort transport addr port = newEndpointPort' transport addr (Just port)
 
 newEndpointPortAddrInfo :: Transport -> AddrInfo -> Port -> Endpoint
-newEndpointPortAddrInfo transport addr port = newEndpointPortAddrInfo' transport addr (Just port)
+newEndpointPortAddrInfo transport addr port =
+  newEndpointPortAddrInfo'
+    transport addr (Just port)
 
 newTCPEndpoint :: Address -> Port -> Endpoint
 newTCPEndpoint addr port = newEndpointPort TCP addr port
@@ -72,8 +82,8 @@ newTCPEndpointAddrInfo :: AddrInfo -> Port -> Endpoint
 newTCPEndpointAddrInfo addr port = newEndpointPortAddrInfo TCP addr port
 
 toAddrInfo :: Endpoint -> IO [AddrInfo]
-toAddrInfo (Endpoint _ a (Just p)) = getAddrInfo Nothing (Just $ B.unpack a) (Just $ show p)
-toAddrInfo (Endpoint _ a _) = getAddrInfo Nothing (Just $ B.unpack a) Nothing
+toAddrInfo (Endpoint _ a (Just p)) = Network.Socket.getAddrInfo Nothing (Just $ B.unpack a) (Just $ show p)
+toAddrInfo (Endpoint _ a _) = Network.Socket.getAddrInfo Nothing (Just $ B.unpack a) Nothing
 
 parseTransport :: Parser Transport
 parseTransport = do
@@ -108,13 +118,13 @@ parseTCPEndpoint = Endpoint <$> pure TCP <*> parseAddress <*> optional parsePort
 parseUDPEndpoint :: Parser Endpoint
 parseUDPEndpoint = Endpoint <$> pure UDP <*> parseAddress <*> optional parsePort
 
-parseAttoEndpoint :: B.ByteString -> Either String Endpoint
+parseAttoEndpoint :: ByteString -> Either String Endpoint
 parseAttoEndpoint = A.parseOnly parseEndpoint
 
-parseAttoTCPEndpoint :: B.ByteString -> Either String Endpoint
+parseAttoTCPEndpoint :: ByteString -> Either String Endpoint
 parseAttoTCPEndpoint = A.parseOnly parseTCPEndpoint
 
-parseAttoUDPEndpoint :: B.ByteString -> Either String Endpoint
+parseAttoUDPEndpoint :: ByteString -> Either String Endpoint
 parseAttoUDPEndpoint = A.parseOnly parseUDPEndpoint
 
 endpointAddr :: Endpoint -> Address

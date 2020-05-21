@@ -5,7 +5,7 @@ module Network.ZRE.Options (
   ) where
 
 import Options.Applicative
-import Data.Semigroup ((<>))
+import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 
 import Network.ZRE.Types
@@ -54,5 +54,5 @@ parseOptions = ZRECfg
       <> help "IP:PORT of the gossip server"))
   <*> (flag' False (long "debug" <> short 'd'))
 
-attoReadM :: (B.ByteString -> Either String a) -> ReadM a
+attoReadM :: (ByteString -> Either String a) -> ReadM a
 attoReadM p = eitherReader (p . B.pack)

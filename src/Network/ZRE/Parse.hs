@@ -4,14 +4,14 @@ module Network.ZRE.Parse (parseApi, parseAttoApi) where
 
 import Control.Applicative
 
+import Data.ByteString (ByteString)
 import Data.UUID
 import Data.Attoparsec.ByteString.Char8 as A
-import qualified Data.ByteString.Char8 as B
 
 import Data.ZRE (mkGroup)
 import Network.ZRE.Types
 
-parseAttoApi :: B.ByteString -> Either String API
+parseAttoApi :: ByteString -> Either String API
 parseAttoApi = A.parseOnly parseApi
 
 parseApi :: Parser API
@@ -31,16 +31,16 @@ parseCmd =
   <|> DoDebug <$> (string "nodebug" *> pure False)
   <|> (string "quit" >> pure DoQuit)
 
-lw :: Parser B.ByteString
+lw :: Parser ByteString
 lw = lskip *> word
 
 lskip :: Parser ()
 lskip = skipWhile (==' ')
 
-word :: Parser B.ByteString
+word :: Parser ByteString
 word = A.takeWhile (/=' ')
 
---uEOL :: Parser B.ByteString
+--uEOL :: Parser ByteString
 --uEOL = A.takeTill (pure False)
 
 uuid :: Parser UUID
