@@ -14,8 +14,11 @@ maintainer:          srk@48.io
 copyright:           2020 Richard Marko
 category:            Networking
 build-type:          Simple
--- extra-source-files:
 cabal-version:       >=1.10
+extra-source-files:
+  README.rst
+  zre.conf
+
 
 library
   hs-source-dirs:      src
