@@ -13,51 +13,129 @@ import qualified Data.Text.IO as TIO
 import Network.ZRE.Types
 import System.ZMQ4.Endpoint
 
-import Data.Ini.Config
-import Data.Default
+import Data.Default (Default, def)
+import qualified Control.Monad
+import qualified Data.Either
+import qualified Data.Foldable
 
-iniParser :: IniParser ZRECfg
-iniParser = section "zre" $ do
-  zreNamed        <- B.pack . T.unpack <$> fieldDef "name" (T.pack . B.unpack $ zreNamed def)
-  zreInterfaces   <- fieldDefOf "interfaces" (return . map B.pack . words . T.unpack) []
-  zreQuietPeriod  <- fieldDefOf "quiet-period"  (fmap isec . number) (zreQuietPeriod def)
-  zreDeadPeriod   <- fieldDefOf "dead-period"   (fmap isec . number) (zreDeadPeriod def)
-  zreBeaconPeriod <- fieldDefOf "beacon-period" (fmap isec . number) (zreBeaconPeriod def)
-  zreZGossip      <- fieldDefOf "gossip" (fmap Just . parseAttoTCPEndpoint . B.pack . T.unpack) (zreZGossip def)
-  zreMCast        <- fieldDefOf "multicast-group" (parseAttoTCPEndpoint . B.pack . T.unpack) (zreMCast def)
-  zreDbg          <- fieldDefOf "debug" flag (zreDbg def)
-  return $ ZRECfg {..}
+import Options.Applicative
+import Network.ZRE.Options
 
-parseZRECfg :: FilePath -> IO (Either String ZRECfg)
-parseZRECfg fpath = do
-    rs <- TIO.readFile fpath
-    return $ parseIniFile rs iniParser
+import qualified Data.Text
+import qualified Data.Attoparsec.Text
 
--- If ZRECFG env var is set, try parsing config file it is pointing to,
--- return default config otherwise.
+trueStr :: Data.Attoparsec.Text.Parser Bool
+trueStr = pure True <$> (
+    Data.Foldable.asum
+  . map Data.Attoparsec.Text.string $ [ "true", "t", "yes", "y" ]
+  )
+
+falseStr :: Data.Attoparsec.Text.Parser Bool
+falseStr =  pure False <$> (
+    Data.Foldable.asum
+  . map Data.Attoparsec.Text.string $ [ "false" , "f" , "no" , "n" ]
+  )
+
+iniFileToArgs :: [String] -> String -> [String]
+iniFileToArgs sections file =
+    concatMap (\(k, v) -> ["--" ++ k] ++ (if v /= "" then [v] else []))
+  . map (Data.Text.unpack <$>)
+  . map (\(k, v) -> if Data.Either.isRight $ Data.Attoparsec.Text.parseOnly (trueStr) v then (k, "") else (k, v)) -- fix --flag true -> --flag
+  . filter (\(k, v) -> case Data.Attoparsec.Text.parseOnly (trueStr <|> falseStr) v of
+      Left _e -> True
+      Right b -> b)
+  . map (Data.Text.pack <$>)
+  . map (\x ->
+          let t = takeWhile (flip elem $ '-':['a'..'z'])
+          in (t x, dropWhile (== ' ') $ drop 1 $ dropWhile (/= '=') x)
+        )
+  . concatMap (\(_section, fields) -> fields)
+  . filter (\(section, _fields) -> section `elem` sections)
+  . groupBySections sections
+  . filter (\(x:_xs) -> x /= '#') -- comments
+  . filter (/="") -- empty
+  $ lines file
+
+-- transform [ "[zre]", "debug = false" "gossip=localhost:31337" "[zrecat]" "bufsize = 300"
+-- to
+-- [("zre", ["debug=false", "gossip=localhost:31337"]), ("zrecat", ["bufsize=300"])]
+groupBySections :: [String] -> [String] -> [(String, [String])]
+groupBySections sections lines = go lines
+  where
+    go [] = []
+    go ((x:xs):ls) | x == '[' = (takeWhile (flip elem $ '-':['a'..'z']) xs, keyVals ls):go ls
+    go (_l:ls)     | otherwise = go ls
+    keyVals [] = []
+    keyVals ls = takeWhile (\(x:xs) -> '[' /= x) ls
+
+-- | Override config value from new iff it differs to default value
 --
--- if ZRENAME env var is set, it overrides name field in ZRECFG config
--- or default config respectively.
-envZRECfg :: IO (ZRECfg)
-envZRECfg = do
-  menv <- lookupEnv "ZRECFG"
+-- This could be done with `gzipWithT` and Generics
+overrideNonDefault :: ZRECfg -> ZRECfg -> ZRECfg
+overrideNonDefault orig new = ZRECfg {
+    zreNamed        = ovr (zreNamed orig)        (zreNamed new)        (zreNamed def)
+  , zreQuietPeriod  = ovr (zreQuietPeriod orig)  (zreQuietPeriod new)  (zreQuietPeriod def)
+  , zreDeadPeriod   = ovr (zreDeadPeriod orig)   (zreDeadPeriod new)   (zreDeadPeriod def)
+  , zreBeaconPeriod = ovr (zreBeaconPeriod orig) (zreBeaconPeriod new) (zreBeaconPeriod def)
+  , zreInterfaces   = ovr (zreInterfaces orig)   (zreInterfaces new)   (zreInterfaces def)
+  , zreMCast        = ovr (zreMCast orig)        (zreMCast new)        (zreMCast def)
+  , zreZGossip      = ovr (zreZGossip orig)      (zreZGossip new)      (zreZGossip def)
+  , zreDbg          = ovr (zreDbg orig)          (zreDbg new)          (zreDbg def)
+  }
+  where
+    ovr :: (Eq a) => a -> a -> a -> a
+    ovr _o n d | n /= d = n
+    ovr o _n _d | otherwise = o
+
+parseZRECfg :: String -> FilePath -> IO (Either String ZRECfg)
+parseZRECfg exeName fpath = do
+  isFile <- doesFileExist fpath
+  case isFile of
+    False -> pure $ Left "No such file"
+    True -> do
+      f <- readFile fpath
+      let cfg = execParserPure defaultPrefs opts (iniFileToArgs ["zre", exeName] f)
+      case cfg of
+        -- we always fail when one of the configs fails to parse
+        Failure e -> error $ fst $ renderFailure e ""
+        Success cfg' -> return $ Right $ cfg'
+        CompletionInvoked _ -> error "No completion"
+  where
+    opts = info (parseOptions <**> helper)
+      ( fullDesc
+     <> progDesc "ZRE"
+     <> header "zre tools" )
+
+-- The order is
+-- * path of @ZRECFG@ env iff set
+-- * @/etc/zre.conf@
+-- * @~/.zre.conf@
+-- * @default@
+--
+-- This also tries to parse subsection for zre programs according to their
+-- name and construct correct command line for these so we can do
+--
+-- @[zrecat]@
+-- @bufsize = 1024@
+--
+-- If @ZRENAME@ env var is set, it overrides name field in the result config.
+envZRECfg :: String -> IO (ZRECfg)
+envZRECfg exeName = do
+  menv  <- lookupEnv "ZRECFG"
   mname <- lookupEnv "ZRENAME"
-  case menv of
-    Nothing -> do
-      hom <- getHomeDirectory
-      let homPth = hom </> ".zre.conf"
-      tst <- doesFileExist homPth
-      case tst of
-        False -> return $ maybeUpdateName def mname
-        True -> do
-          res <- parseZRECfg homPth
-          case res of
-           Left err -> putStrLn ("Unable to parse config: " ++ err) >> exitFailure
-           Right cfg -> return $ maybeUpdateName cfg mname
-    Just env -> do
-      res <- parseZRECfg env
-      case res of
-        Left err -> putStrLn ("Unable to parse config: " ++ err) >> exitFailure
-        Right cfg -> return $ maybeUpdateName cfg mname
+
+  hom <- getHomeDirectory
+
+  cfg <- asumOneConfig [
+      maybe (pure $ Left "No ZRECFG env") (parseZRECfg exeName) menv
+    , parseZRECfg exeName "/etc/zre.conf"
+    , parseZRECfg exeName $ hom </> ".zre.conf"
+    , return $ Right def
+    ]
+  return $ maybeUpdateName cfg mname
   where
     maybeUpdateName cfg mname = maybe cfg (\x -> cfg { zreNamed = B.pack x}) mname
+    asumOneConfig [] = error "Can't happen"
+    asumOneConfig (x:xs) = x >>= \y -> case y of
+      Left _e -> asumOneConfig xs
+      Right cfg -> return $ cfg
