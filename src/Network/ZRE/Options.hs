@@ -37,12 +37,12 @@ parseOptions = ZRECfg
       <> value (sec (0.9 :: Float))
       <> help "Send beacon every N seconds"))
   <*> ((map B.pack) <$> many (strOption
-        (long "iface"
+        (long "interface"
       <> short 'i'
       <> metavar "IFACE"
       <> help "Interfaces")))
   <*> option (attoReadM parseAttoUDPEndpoint)
-        (long "mcast"
+        (long "multicast-group"
       <> short 'm'
       <> metavar "IP:PORT"
       <> value defMCastEndpoint
