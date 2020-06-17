@@ -32,35 +32,16 @@ msec = round . (*1000)
 zreBeaconMs :: Int
 zreBeaconMs = 900000
 
--- send hugz after x mseconds
--- agressive
---quietPeriod = (msec 200) / 1000000.0 :: NominalDiffTime
---deadPeriod = (msec 600) / 1000000.0 :: NominalDiffTime
-
--- lazy
-quietPeriod :: NominalDiffTime
-quietPeriod = (fromIntegral $ sec (1.0 :: Float)) / 1000000.0
-
-deadPeriod :: NominalDiffTime
-deadPeriod = (fromIntegral $ sec (5.0 :: Float))  / 1000000.0
-
-quietPingRate :: Int
-quietPingRate = sec (1.0 :: Float)
-
--- send beacon every 1 ms (much aggressive, will kill networkz)
---zreBeaconMs = 1000 :: Int
---quietPeriod = 2000 / 100000.0 :: NominalDiffTime
---deadPeriod = 6000  / 100000.0 :: NominalDiffTime
-
 data ZRECfg = ZRECfg {
-    zreNamed        :: ByteString
-  , zreQuietPeriod  :: Int
-  , zreDeadPeriod   :: Int
-  , zreBeaconPeriod :: Int
-  , zreInterfaces   :: [ByteString]
-  , zreMCast        :: Endpoint
-  , zreZGossip      :: Maybe Endpoint
-  , zreDbg          :: Bool
+    zreNamed         :: ByteString
+  , zreQuietPeriod   :: Int
+  , zreQuietPingRate :: Int
+  , zreDeadPeriod    :: Int
+  , zreBeaconPeriod  :: Int
+  , zreInterfaces    :: [ByteString]
+  , zreMCast         :: Endpoint
+  , zreZGossip       :: Maybe Endpoint
+  , zreDbg           :: Bool
   } deriving (Show)
 
 defMCastEndpoint :: Endpoint
@@ -68,14 +49,15 @@ defMCastEndpoint = newUDPEndpoint "225.25.25.25" 5670
 
 defaultConf :: ZRECfg
 defaultConf = ZRECfg {
-    zreNamed        = "zre"
-  , zreQuietPeriod  = sec (1.0 :: Float)
-  , zreDeadPeriod   = sec (5.0 :: Float)
-  , zreBeaconPeriod = sec (0.9 :: Float)
-  , zreInterfaces   = []
-  , zreZGossip      = Nothing
-  , zreMCast        = defMCastEndpoint
-  , zreDbg          = False
+    zreNamed         = "zre"
+  , zreQuietPeriod   = sec (1.0 :: Float)
+  , zreQuietPingRate = sec (1.0 :: Float)
+  , zreDeadPeriod    = sec (5.0 :: Float)
+  , zreBeaconPeriod  = sec (0.9 :: Float)
+  , zreInterfaces    = []
+  , zreZGossip       = Nothing
+  , zreMCast         = defMCastEndpoint
+  , zreDbg           = False
   }
 
 instance Default ZRECfg where
@@ -124,6 +106,7 @@ data ZREState = ZREState {
   , zreIn         :: EventQueue
   , zreOut        :: APIQueue
   , zreIfaces     :: Map ByteString [Async ()]
+  , zreCfg        :: ZRECfg
   }
 
 data Peer = Peer {
@@ -227,8 +210,9 @@ newZREState :: Name
             -> EventQueue
             -> APIQueue
             -> Bool
+            -> ZRECfg
             -> IO (TVar ZREState)
-newZREState name endpoint u inQ outQ dbg = atomically $ newTVar $
+newZREState name endpoint u inQ outQ dbg cfg = atomically $ newTVar $
   ZREState {
     zreUUID = u
     , zrePeers = mempty
@@ -242,4 +226,5 @@ newZREState name endpoint u inQ outQ dbg = atomically $ newTVar $
     , zreIn = inQ
     , zreOut = outQ
     , zreIfaces = mempty
+    , zreCfg = cfg
     }

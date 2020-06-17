@@ -102,7 +102,7 @@ runZre a = do
   runZreCfg cfg a
 
 runZreCfg :: ZRECfg -> ZRE a -> IO ()
-runZreCfg ZRECfg{..} app = do
+runZreCfg cfg@ZRECfg{..} app = do
     ifcs <- getIfaces zreInterfaces
 
     u <- maybeM (exitFail "Unable to get UUID") return nextUUID
@@ -122,7 +122,7 @@ runZreCfg ZRECfg{..} app = do
         inQ <- atomically $ newTBQueue 1000000
         outQ <- atomically $ newTBQueue 1000000
 
-        s <- newZREState zreName zreEndpoint u inQ outQ zreDbg
+        s <- newZREState zreName zreEndpoint u inQ outQ zreDbg cfg
 
         -- FIXME: support multiple gossip clients
         case zreZGossip of

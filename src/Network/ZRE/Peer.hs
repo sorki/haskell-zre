@@ -178,20 +178,22 @@ destroyPeer s uuid = do
 pinger :: TVar ZREState -> TVar Peer -> IO b
 pinger s peer = forever $ do
   p@Peer{..} <- atomically $ readTVar peer
+  cfg <- atomically $ zreCfg <$> readTVar s
+
   now <- getCurrentTime
-  if diffUTCTime now peerLastHeard > deadPeriod
+  if diffUTCTime now peerLastHeard > (fromIntegral $ zreDeadPeriod cfg)
     then do
       atomically $ emitdbg s $ B.unwords ["Peer over deadPeriod, destroying", bshow p]
       destroyPeer s peerUUID
     else do
       let tdiff = diffUTCTime now peerLastHeard
-      if tdiff > quietPeriod
+      if tdiff > (fromIntegral $ zreQuietPeriod cfg)
         then do
           atomically $ emitdbg s $ B.unwords ["Peer over quietPeriod, sending hugz", bshow p]
           atomically $ writeTBQueue peerQueue $ Ping
-          threadDelay quietPingRate
+          threadDelay (zreQuietPingRate cfg)
         else do
-          threadDelay $ sec (quietPeriod - tdiff)
+          threadDelay $ sec $ (fromIntegral $ zreQuietPeriod cfg) - tdiff
 
 lookupPeer :: TVar ZREState -> UUID -> STM (Maybe (TVar Peer))
 lookupPeer s uuid = do

@@ -24,6 +24,12 @@ parseOptions = ZRECfg
       <> metavar "N"
       <> value (sec (1.0 :: Float))
       <> help "Ping peer after N seconds"))
+  <*> (isec <$> option auto
+        (long "quiet-ping-rate"
+      <> short 'p'
+      <> metavar "N"
+      <> value (sec (1.0 :: Float))
+      <> help "Peer ping rate after quiet period passed"))
   <*> ((*100000) <$> option auto
         (long "dead-period"
       <> short 'd'

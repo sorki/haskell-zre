@@ -73,14 +73,15 @@ groupBySections sections lines = go lines
 -- This could be done with `gzipWithT` and Generics
 overrideNonDefault :: ZRECfg -> ZRECfg -> ZRECfg
 overrideNonDefault orig new = ZRECfg {
-    zreNamed        = ovr (zreNamed orig)        (zreNamed new)        (zreNamed def)
-  , zreQuietPeriod  = ovr (zreQuietPeriod orig)  (zreQuietPeriod new)  (zreQuietPeriod def)
-  , zreDeadPeriod   = ovr (zreDeadPeriod orig)   (zreDeadPeriod new)   (zreDeadPeriod def)
-  , zreBeaconPeriod = ovr (zreBeaconPeriod orig) (zreBeaconPeriod new) (zreBeaconPeriod def)
-  , zreInterfaces   = ovr (zreInterfaces orig)   (zreInterfaces new)   (zreInterfaces def)
-  , zreMCast        = ovr (zreMCast orig)        (zreMCast new)        (zreMCast def)
-  , zreZGossip      = ovr (zreZGossip orig)      (zreZGossip new)      (zreZGossip def)
-  , zreDbg          = ovr (zreDbg orig)          (zreDbg new)          (zreDbg def)
+    zreNamed         = ovr (zreNamed orig)         (zreNamed new)         (zreNamed def)
+  , zreQuietPeriod   = ovr (zreQuietPeriod orig)   (zreQuietPeriod new)   (zreQuietPeriod def)
+  , zreQuietPingRate = ovr (zreQuietPingRate orig) (zreQuietPingRate new) (zreQuietPingRate def)
+  , zreDeadPeriod    = ovr (zreDeadPeriod orig)    (zreDeadPeriod new)    (zreDeadPeriod def)
+  , zreBeaconPeriod  = ovr (zreBeaconPeriod orig)  (zreBeaconPeriod new)  (zreBeaconPeriod def)
+  , zreInterfaces    = ovr (zreInterfaces orig)    (zreInterfaces new)    (zreInterfaces def)
+  , zreMCast         = ovr (zreMCast orig)         (zreMCast new)         (zreMCast def)
+  , zreZGossip       = ovr (zreZGossip orig)       (zreZGossip new)       (zreZGossip def)
+  , zreDbg           = ovr (zreDbg orig)           (zreDbg new)           (zreDbg def)
   }
   where
     ovr :: (Eq a) => a -> a -> a -> a
