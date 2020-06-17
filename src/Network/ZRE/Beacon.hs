@@ -62,7 +62,7 @@ beaconHandle s addr uuid port = do
 
 
 -- | Send UDP multicast beacons periodically
-beacon :: AddrInfo -> ByteString -> Port -> IO a
+beacon :: AddrInfo -> ByteString -> Port -> IO ()
 beacon addrInfo uuid port = do
     withSocketsDo $ do
       bracket (getSocket addrInfo) close (talk (addrAddress addrInfo) (zreBeacon uuid port))
