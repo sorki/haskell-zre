@@ -3,7 +3,7 @@
 module Network.ZRE (
     runZre
   , runZreCfg
-  , runZreOpts
+  , runZreParse
   , readZ
   , writeZ
   , unReadZ
@@ -60,17 +60,6 @@ import Network.ZGossip
 import System.ZMQ4.Endpoint
 
 import Options.Applicative
-import Data.Semigroup ((<>))
-
-runZreOpts :: ZRE a -> IO ()
-runZreOpts app = do
-  cfg <- execParser opts
-  runZreCfg cfg app
-  where
-    opts = info (parseOptions <**> helper)
-      ( fullDesc
-     <> progDesc "ZRE"
-     <> header "zre tools" )
 
 getIfaces :: [ByteString]
           -> IO [(ByteString, ByteString, ByteString)]
@@ -97,9 +86,20 @@ runIface s port (iface, ipv4, ipv6) = do
      x { zreIfaces = M.insert iface [r] (zreIfaces x) }
 
 runZre :: ZRE a -> IO ()
-runZre a = do
-  cfg <- envZRECfg
-  runZreCfg cfg a
+runZre app = runZreParse (pure ()) (\() -> app)
+
+runZreParse :: Parser extra -> (extra -> ZRE a) -> IO ()
+runZreParse parseExtra app = do
+  -- try to get config from the enviornment variable ENVCFG, /etc/zre.conf
+  -- or ~/.zre.conf and override with command line options.
+  cfgIni <- envZRECfg "zre"
+  (cfgOpts, extras) <- execParser opts
+  runZreCfg (overrideNonDefault cfgIni cfgOpts) (app extras)
+  where
+    opts = info (((,) <$> parseOptions <*> parseExtra)  <**> helper)
+      ( fullDesc
+     <> progDesc "ZRE"
+     <> header "zre tools" )
 
 runZreCfg :: ZRECfg -> ZRE a -> IO ()
 runZreCfg cfg@ZRECfg{..} app = do
