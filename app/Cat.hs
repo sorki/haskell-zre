@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 module Main where
 
 import Control.Monad
@@ -12,19 +13,31 @@ import System.IO
 import System.Environment
 
 import Network.ZRE
+import Options.Applicative
+
+data CatOpts = CatOpts {
+    shutdown     :: Bool  -- ^ Close connection after EOF on the input
+  , lineBuffered :: Bool
+  , bufferSize   :: Int
+  , catGroup     :: Group
+  } deriving (Eq, Show, Ord)
+
+parseCatOptions = CatOpts
+  <$> switch (long "shutdown" <> short 'N')
+  <*> switch (long "bufbyline" <> short 'l')
+  <*> option auto (long "bufsize" <> short 'O' <> value (1024*128))
+  <*> (mkGroup <$> strArgument (metavar "GROUP"))
 
 main :: IO ()
 main = do
-  args <- getArgs
-  let group = mkGroup $ B.pack $ head args
+  runZreParse parseCatOptions $ groupCat
 
-  runZre $ groupCat group
-
-groupCat :: Group -> ZRE ()
-groupCat group = do
-  zjoin group
+groupCat :: CatOpts -> ZRE ()
+groupCat CatOpts{..} = do
+  zjoin catGroup
+  void $ async $ catln
   -- wait a sec so join is received by peers before sending stuff
-  void $ async $ (liftIO $ threadDelay 1000000) >> (stdin' group)
+  void $ async $ (liftIO $ threadDelay 1000000) >> (stdin' catGroup)
   cat
 
 catln :: ZRE ()
