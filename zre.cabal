@@ -16,6 +16,7 @@ category:            Networking
 build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:
+  CHANGELOG.md
   README.rst
   zre.conf
 
