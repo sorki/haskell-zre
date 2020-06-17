@@ -102,7 +102,7 @@ parseCmd from = do
 
 parseZGS :: [ByteString] -> Either String ZGSMsg
 parseZGS [from, msg] = parseZgs from msg
-parseZGS x = Left "empty message"
+parseZGS _ = Left "empty message"
 
 parseZgs :: ByteString -> ByteString -> Either String ZGSMsg
 parseZgs from msg = flip runGet msg $ do

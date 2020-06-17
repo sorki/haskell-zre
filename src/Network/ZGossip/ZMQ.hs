@@ -46,7 +46,7 @@ zgossipDealer endpoint ourUUID peerQ handler = ZMQ.runZMQ $ do
            Left err -> do
              liftIO $ print $ "Malformed gossip message received: " ++ err
              liftIO $ print input
-           Right msg@ZGSMsg{..} -> do
+           Right msg -> do
              liftIO $ handler msg
 
   sa <- ZMQ.async spam

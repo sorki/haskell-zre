@@ -5,16 +5,11 @@ module Network.ZRE.Config where
 import System.Environment
 import System.Directory
 import System.FilePath.Posix
-import System.Exit (exitFailure)
 import qualified Data.ByteString.Char8 as B
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
 
 import Network.ZRE.Types
-import System.ZMQ4.Endpoint
 
-import Data.Default (Default, def)
-import qualified Control.Monad
+import Data.Default (def)
 import qualified Data.Either
 import qualified Data.Foldable
 
@@ -41,7 +36,7 @@ iniFileToArgs sections file =
     concatMap (\(k, v) -> ["--" ++ k] ++ (if v /= "" then [v] else []))
   . map (Data.Text.unpack <$>)
   . map (\(k, v) -> if Data.Either.isRight $ Data.Attoparsec.Text.parseOnly (trueStr) v then (k, "") else (k, v)) -- fix --flag true -> --flag
-  . filter (\(k, v) -> case Data.Attoparsec.Text.parseOnly (trueStr <|> falseStr) v of
+  . filter (\(_, v) -> case Data.Attoparsec.Text.parseOnly (trueStr <|> falseStr) v of
       Left _e -> True
       Right b -> b)
   . map (Data.Text.pack <$>)
@@ -51,7 +46,7 @@ iniFileToArgs sections file =
         )
   . concatMap (\(_section, fields) -> fields)
   . filter (\(section, _fields) -> section `elem` sections)
-  . groupBySections sections
+  . groupBySections
   . filter (\(x:_xs) -> x /= '#') -- comments
   . filter (/="") -- empty
   $ lines file
@@ -59,14 +54,14 @@ iniFileToArgs sections file =
 -- transform [ "[zre]", "debug = false" "gossip=localhost:31337" "[zrecat]" "bufsize = 300"
 -- to
 -- [("zre", ["debug=false", "gossip=localhost:31337"]), ("zrecat", ["bufsize=300"])]
-groupBySections :: [String] -> [String] -> [(String, [String])]
-groupBySections sections lines = go lines
+groupBySections :: [String] -> [(String, [String])]
+groupBySections lines' = go lines'
   where
     go [] = []
     go ((x:xs):ls) | x == '[' = (takeWhile (flip elem $ '-':['a'..'z']) xs, keyVals ls):go ls
     go (_l:ls)     | otherwise = go ls
     keyVals [] = []
-    keyVals ls = takeWhile (\(x:xs) -> '[' /= x) ls
+    keyVals ls = takeWhile (\(x:_) -> '[' /= x) ls
 
 -- | Override config value from new iff it differs to default value
 --
