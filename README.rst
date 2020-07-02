@@ -71,7 +71,7 @@ ZGossip
 
 Implementation of gossip protocol is included in form of key value TTL server.
 This allows connecting peers from different networks (or subnets) not reachable via multicast
-beacon. This service requires TCP port 31337 and can be started with `zgossip_server` binary.
+beacon. This service requires TCP port 31337 and can be started with `zgossip-server` binary.
 
 Run server::
 
