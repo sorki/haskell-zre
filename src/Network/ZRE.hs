@@ -3,6 +3,7 @@
 module Network.ZRE (
     runZre
   , runZreCfg
+  , runZreEnvConfig
   , runZreParse
   , readZ
   , writeZ
@@ -105,6 +106,13 @@ runZreParse parseExtra app = do
       ( fullDesc
      <> progDesc "ZRE"
      <> header "zre tools" )
+
+-- | Run with config file loaded from the enviornment variable ENVCFG
+-- (@/etc/zre.conf@ or @~/.zre.conf@)
+runZreEnvConfig :: ZRE a -> IO ()
+runZreEnvConfig app = do
+  cfgIni <- envZRECfg "zre"
+  runZreCfg cfgIni app
 
 runZreCfg :: ZRECfg -> ZRE a -> IO ()
 runZreCfg cfg@ZRECfg{..} app = do
