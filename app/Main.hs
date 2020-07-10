@@ -31,9 +31,6 @@ completer n = do
 
   return $ filter (isPrefixOf n) (map ('/':) names)
 
-ini :: Repl ()
-ini = liftIO $ putStrLn "Welcome!"
-
 main :: IO ()
 main = runZre replApp
 
@@ -62,8 +59,11 @@ replApp = void $ do
 
     repl = do
       q <- getApiQueue
-      liftIO $ evalRepl (pure ">>> ") (cmd q) [] Nothing (Word completer) ini
+      liftIO $ evalRepl (const $ pure ">>> ") (cmd q) [] Nothing Nothing (Word completer) ini end
       liftIO $ atomically $ writeTBQueue q DoQuit
+
+    ini = liftIO $ putStrLn "Welcome!"
+    end = liftIO $ putStrLn "Exiting" >> return Exit
 
     cmd :: APIQueue -> String -> Repl ()
     cmd q x = do

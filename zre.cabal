@@ -84,7 +84,7 @@ executable zre
                      , bytestring
                      , async
                      , lifted-async
-                     , repline
+                     , repline >= 0.4.0 && < 0.5
                      , stm
                      , zre
   default-language:    Haskell2010
