@@ -1,3 +1,10 @@
+
+# Version [0.1.2.0](https://github.com/sorki/haskell-zre/compare/0.1.1.0...0.1.2.0) (2020-07-10)
+
+* Added
+  * `zreChanWith` - principled variant of `zreChan` accepting runner function
+  * `runZreEnvConfig` - runner utilizing config files only
+
 # Version [0.1.1.0](https://github.com/sorki/haskell-zre/compare/0.1.0.2...0.1.1.0) (2020-06-17)
 
 * Changelog started. Previous release was `0.1.0.2`.
