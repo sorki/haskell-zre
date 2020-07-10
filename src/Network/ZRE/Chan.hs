@@ -5,6 +5,7 @@
 module Network.ZRE.Chan (
     zreChan
   , zreChan'
+  , zreChanWith
   , mapToGroup
   , mapToGroup'
   ) where
@@ -83,11 +84,20 @@ zreChan' :: (Serialize input, Serialize output)
          -> Group
          -> IO ( TChan input
                , TChan output)
-zreChan' outputGroup inputGroup = do
+zreChan' = zreChanWith Network.ZRE.runZre
+
+-- | Principled version accepting runner function
+zreChanWith :: (Serialize input, Serialize output)
+            => (ZRE () -> IO ())
+            -> Group
+            -> Group
+            -> IO ( TChan input
+                  , TChan output)
+zreChanWith runner outputGroup inputGroup = do
   chanInput  <- Control.Concurrent.STM.newTChanIO
   chanOutput <- Control.Concurrent.STM.newTChanIO
 
-  _ <- Control.Concurrent.Async.Lifted.async $ Network.ZRE.runZre $ do
+  _ <- Control.Concurrent.Async.Lifted.async $ runner $ do
 
     -- joining the outputGroup is not strictly needed for
     -- shouts to pass thru, for indication only
