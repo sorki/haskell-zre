@@ -86,8 +86,13 @@ runIface s port (iface, ipv4, ipv6) = do
      x { zreIfaces = M.insert iface [r] (zreIfaces x) }
 
 runZre :: ZRE a -> IO ()
-runZre app = runZreParse (pure ()) (\() -> app)
+runZre app = runZreParse (pure ()) (const app)
 
+-- | Run with config file loaded from the enviornment variable ENVCFG
+-- (@/etc/zre.conf@ or @~/.zre.conf@), possibly overriden by command-line options.
+--
+-- Accepts another `optparse-applicative` `Parser` for extending
+-- built-in one.
 runZreParse :: Parser extra -> (extra -> ZRE a) -> IO ()
 runZreParse parseExtra app = do
   -- try to get config from the enviornment variable ENVCFG, /etc/zre.conf
