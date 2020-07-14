@@ -1,3 +1,8 @@
+# Version [0.1.3.0](https://github.com/sorki/haskell-zre/compare/0.1.2.0...0.1.3.0) (2020-07-14)
+
+* Cabal fixes
+  * Relaxed base bound
+  * `cabal-version: 2.0`
 
 # Version [0.1.2.0](https://github.com/sorki/haskell-zre/compare/0.1.1.0...0.1.2.0) (2020-07-10)
 
