@@ -18,29 +18,29 @@ parseOptions = ZRECfg
       <> short 'n'
       <> value ""
       <> help "Node name"))
-  <*> (isec <$> option auto
+  <*> (option auto
         (long "quiet-period"
       <> short 'q'
       <> metavar "N"
-      <> value (sec (1.0 :: Float))
+      <> value 1.0
       <> help "Ping peer after N seconds"))
-  <*> (isec <$> option auto
+  <*> (option auto
         (long "quiet-ping-rate"
       <> short 'p'
       <> metavar "N"
-      <> value (sec (1.0 :: Float))
+      <> value 1.0
       <> help "Peer ping rate after quiet period passed"))
-  <*> ((*100000) <$> option auto
+  <*> (option auto
         (long "dead-period"
       <> short 'd'
       <> metavar "N"
-      <> value (sec (1.0 :: Float))
+      <> value 5.0
       <> help "Mark peer dead after N seconds"))
-  <*> ((*100000) <$> option auto
+  <*> (option auto
          (long "beacon-period"
       <> short 'b'
       <> metavar "N"
-      <> value (sec (0.9 :: Float))
+      <> value 0.9
       <> help "Send beacon every N seconds"))
   <*> ((map B.pack) <$> many (strOption
         (long "interface"

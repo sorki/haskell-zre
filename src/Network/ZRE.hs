@@ -143,7 +143,7 @@ runZreCfg cfg@ZRECfg{..} app = do
           Just end -> void $ async $ zgossipClient uuid end zreEndpoint (zgossipZRE outQ)
 
         (mCastAddr:_) <- toAddrInfo zreMCast
-        _beaconAsync <- async $ beacon mCastAddr uuid zrePort
+        _beaconAsync <- async $ beacon zreBeaconPeriod mCastAddr uuid zrePort
         _beaconRecvAsync <- async $ beaconRecv s zreMCast
 
         mapM_ (runIface s zrePort) ifaces

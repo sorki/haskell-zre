@@ -28,16 +28,12 @@ sec  = round . isec
 msec :: (RealFrac a) => a -> Int
 msec = round . (*1000)
 
--- send beacon every 0.9 seconds
-zreBeaconMs :: Int
-zreBeaconMs = 900000
-
 data ZRECfg = ZRECfg {
     zreNamed         :: ByteString
-  , zreQuietPeriod   :: Int
-  , zreQuietPingRate :: Int
-  , zreDeadPeriod    :: Int
-  , zreBeaconPeriod  :: Int
+  , zreQuietPeriod   :: Float
+  , zreQuietPingRate :: Float
+  , zreDeadPeriod    :: Float
+  , zreBeaconPeriod  :: Float
   , zreInterfaces    :: [ByteString]
   , zreMCast         :: Endpoint
   , zreZGossip       :: Maybe Endpoint
@@ -50,10 +46,10 @@ defMCastEndpoint = newUDPEndpoint "225.25.25.25" 5670
 defaultConf :: ZRECfg
 defaultConf = ZRECfg {
     zreNamed         = "zre"
-  , zreQuietPeriod   = sec (1.0 :: Float)
-  , zreQuietPingRate = sec (1.0 :: Float)
-  , zreDeadPeriod    = sec (5.0 :: Float)
-  , zreBeaconPeriod  = sec (0.9 :: Float)
+  , zreQuietPeriod   = 1.0
+  , zreQuietPingRate = 1.0
+  , zreDeadPeriod    = 5.0
+  , zreBeaconPeriod  = 0.9
   , zreInterfaces    = []
   , zreZGossip       = Nothing
   , zreMCast         = defMCastEndpoint
