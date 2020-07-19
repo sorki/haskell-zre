@@ -189,10 +189,11 @@ znodebug = writeZ $ DoDebug False
 zquit :: ZRE ()
 zquit = writeZ $ DoQuit
 
-zfail :: String -> ZRE ()
+zfail :: String -> ZRE a
 zfail errorMsg = do
   liftIO $ putStrLn errorMsg
   writeZ $ DoQuit
+  error errorMsg
 
 zrecv :: ZRE (Event)
 zrecv = readZ
