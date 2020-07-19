@@ -37,6 +37,8 @@ import Control.Monad hiding (join)
 import Control.Concurrent
 import Control.Concurrent.Async
 import Control.Concurrent.STM
+import Control.Exception (SomeException)
+import qualified Control.Exception.Lifted
 
 import Data.ByteString (ByteString)
 import Data.UUID
@@ -150,7 +152,16 @@ runZreCfg cfg@ZRECfg{..} app = do
 
         apiAsync <- async $ api s
         threadDelay 500000
-        _userAppAsync <- async $ runZ (app >> zquit) inQ outQ
+        _userAppAsync <- async
+          $ runZ
+              (app
+                `Control.Exception.Lifted.catch`
+                (\e -> do let err = show (e :: SomeException) in zfail err)
+                `Control.Exception.Lifted.finally`
+                zquit
+              )
+              inQ
+              outQ
 
         wait apiAsync
         return ()

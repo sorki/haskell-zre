@@ -49,6 +49,7 @@ library
   build-depends:       base >= 4 && < 5
                      , async
                      , lifted-async
+                     , lifted-base
                      , attoparsec ^>= 0.13
                      , cereal
                      , data-default
