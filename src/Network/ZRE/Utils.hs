@@ -61,7 +61,7 @@ getIfaceReport :: ByteString
 getIfaceReport iname = do
   i <- getIface iname
   case i of
-    Nothing -> exitFail $ "Unable to get info for interace " `B.append` iname
+    Nothing -> exitFail $ "Unable to get info for interface " `B.append` iname
     (Just NetworkInterface{..}) -> return (iname, B.pack $ show ipv4, B.pack $ show ipv6)
 
 getName :: ByteString -> IO ByteString
