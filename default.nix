@@ -1,3 +1,6 @@
-{ nixpkgs ? import <nixpkgs> {}}:
-nixpkgs.haskell.lib.buildFromSdist
-  (nixpkgs.haskellPackages.callCabal2nix "zre" ./. { })
+{ pkgs ? import <nixpkgs> {} }:
+let
+  src = pkgs.nix-gitignore.gitignoreSource [ ] ./.;
+in
+  pkgs.haskell.lib.buildFromSdist
+    (pkgs.haskellPackages.callCabal2nix "zre" src { })
