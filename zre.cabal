@@ -50,7 +50,7 @@ library
                      , async
                      , lifted-async
                      , lifted-base
-                     , attoparsec ^>= 0.13
+                     , attoparsec ^>= 0.14
                      , cereal
                      , data-default
                      , network ^>= 3.1
