@@ -1,5 +1,5 @@
 name:                zre
-version:             0.1.4.0
+version:             0.1.5.0
 synopsis:            ZRE protocol implementation
 description:         Peer-to-peer local area networking with reliable group messaging
                      and automatic peer discovery.

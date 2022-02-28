@@ -1,3 +1,7 @@
+# Version [0.1.5.0](https://github.com/sorki/haskell-zre/compare/0.1.4.0...0.1.5.0) (2022-02-28)
+
+* Use `attoparsec 0.14`
+
 # Version [0.1.4.0](https://github.com/sorki/haskell-zre/compare/0.1.3.0...0.1.4.0) (2020-07-19)
 
 * Changed `zfail` type from `String -> ZRE ()` to `String -> ZRE a`
