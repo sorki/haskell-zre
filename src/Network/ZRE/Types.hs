@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+
 module Network.ZRE.Types where
 
 import Control.Monad.Reader
@@ -20,6 +20,7 @@ import Data.Default
 import Data.ZRE hiding (Shout, Whisper) -- (Name, Seq, Group, Groups, GroupSeq, Headers, Content, ZRECmd, ZREMsg)
 import System.ZMQ4.Endpoint
 
+import qualified Control.Monad
 
 isec :: (Num a) => a -> a
 isec  = (*1000000)
@@ -153,7 +154,10 @@ readZ = do
 unReadZ :: Event -> ZRE ()
 unReadZ x = do
   (e, _) <- ask
-  void $ liftIO $ atomically $ unGetTBQueue e x
+  Control.Monad.void
+    $ liftIO
+    $ atomically
+    $ unGetTBQueue e x
 
 writeZ :: API -> ZRE ()
 writeZ x = do

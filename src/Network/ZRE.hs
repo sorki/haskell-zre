@@ -91,7 +91,7 @@ runIface s port (iface, ipv4, ipv6) = do
 runZre :: ZRE a -> IO ()
 runZre app = runZreParse (pure ()) (const app)
 
--- | Run with config file loaded from the enviornment variable ENVCFG
+-- | Run with config file loaded from the environment variable ENVCFG
 -- (@/etc/zre.conf@ or @~/.zre.conf@), possibly overriden by command-line options.
 --
 -- Accepts another `optparse-applicative` `Parser` for extending
