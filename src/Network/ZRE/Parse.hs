@@ -25,6 +25,7 @@ parseCmd :: Parser API
 parseCmd =
       DoJoin . mkGroup  <$> (string "join" *> lskip *> word)
   <|> DoLeave . mkGroup <$> (string "leave" *> lskip *> word)
+  -- TODO quoted shouts
   <|> DoShout <$> (string "shout" *> lskip *> (mkGroup <$> word)) <*> (lskip *> word)
   <|> DoWhisper <$> (string "whisper" *> uuid) <*> lw
   <|> DoDebug <$> (string "debug" *> pure True)
