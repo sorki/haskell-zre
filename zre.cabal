@@ -17,7 +17,7 @@ build-type:          Simple
 cabal-version:       2.0
 extra-source-files:
   CHANGELOG.md
-  README.rst
+  README.md
   zre.conf
 
 flag examples
@@ -57,7 +57,7 @@ library
                      , network-bsd ^>= 2.8
                      , network-info ^>= 0.2
                      , network-multicast ^>= 0.3
-                     , binary ^>= 0.8
+                     , binary >= 0.8
                      , bytestring
                      , containers
                      , directory
