@@ -1,5 +1,9 @@
 # zre
 
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/sorki/haskell-zre/ci.yaml?branch=master)](https://github.com/sorki/haskell-zre/actions/workflows/ci.yaml)
+[![Hackage version](https://img.shields.io/hackage/v/zre.svg?color=success)](https://hackage.haskell.org/package/zre)
+[![Dependencies](https://img.shields.io/hackage-deps/v/zre?label=Dependencies)](https://packdeps.haskellers.com/feed?needle=zre)
+
 ZRE protocol implementation https://rfc.zeromq.org/spec:36/ZRE/
 
 Peer-to-peer local area networking with reliable group messaging
