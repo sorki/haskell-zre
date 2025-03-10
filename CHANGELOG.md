@@ -1,3 +1,7 @@
+# Version [0.1.5.2](https://github.com/sorki/haskell-zre/compare/0.1.5.1...0.1.5.2) (2024-03-10)
+
+* Allow `network 3.2`
+
 # Version [0.1.5.1](https://github.com/sorki/haskell-zre/compare/0.1.5.0...0.1.5.1) (2023-11-28)
 
 * Fix missing `void` import for GHC9.6.3

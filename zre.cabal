@@ -1,5 +1,5 @@
 name:                zre
-version:             0.1.5.1
+version:             0.1.5.2
 synopsis:            ZRE protocol implementation
 description:         Peer-to-peer local area networking with reliable group messaging
                      and automatic peer discovery.
@@ -53,7 +53,7 @@ library
                      , attoparsec ^>= 0.14
                      , cereal
                      , data-default
-                     , network ^>= 3.1
+                     , network >= 3.1 && < 4
                      , network-bsd ^>= 2.8
                      , network-info ^>= 0.2
                      , network-multicast ^>= 0.3
